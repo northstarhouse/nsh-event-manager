@@ -296,19 +296,19 @@ const EventManagementApp = () => {
                       <div className="flex gap-3">
                         <button
                           onClick={() => setShowSuggestions(showSuggestions === 'high' ? null : 'high')}
-                          className="px-4 py-2 bg-gradient-to-r from-amber-700 to-amber-800 text-white rounded-md hover:from-amber-800 hover:to-amber-900 transition-all shadow-sm text-sm font-medium"
+                          className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           High-Impact
                         </button>
                         <button
                           onClick={() => setShowSuggestions(showSuggestions === 'medium' ? null : 'medium')}
-                          className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-md hover:from-amber-700 hover:to-amber-800 transition-all shadow-sm text-sm font-medium"
+                          className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           Medium-Impact
                         </button>
                         <button
                           onClick={() => setShowSuggestions(showSuggestions === 'optional' ? null : 'optional')}
-                          className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-md hover:from-amber-700 hover:to-amber-800 transition-all shadow-sm text-sm font-medium"
+                          className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           Optional Boost
                         </button>
@@ -414,7 +414,7 @@ const EventManagementApp = () => {
           </div>
           <button
             onClick={() => setShowNewEventForm(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-700 to-amber-800 text-white rounded-md hover:from-amber-800 hover:to-amber-900 transition-all shadow-md"
+            className="flex items-center gap-2 px-6 py-3 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-md"
           >
             <Plus size={20} />
             New Event
@@ -503,7 +503,7 @@ const EventManagementApp = () => {
                   <button
                     onClick={handleCreateEvent}
                     disabled={!newEvent.name}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-700 to-amber-800 text-white rounded-md hover:from-amber-800 hover:to-amber-900 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-md"
+                    className="flex-1 px-6 py-3 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-md"
                   >
                     Create Event
                   </button>
@@ -612,6 +612,7 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
 
 
 
