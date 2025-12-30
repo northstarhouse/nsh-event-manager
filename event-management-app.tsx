@@ -17,10 +17,10 @@ const EventManagementApp = () => {
     { id: 'flyer', label: 'Create Flyer' },
     { id: 'website', label: 'Make Event Page on Website' },
     { id: 'email', label: 'Send Email Blast' },
-    { id: 'yubanet', label: 'YubaNet (Press Release Only - if worthy)', special: true },
+    { id: 'yubanet', label: 'YubaNet (Press Release Only - if worthy)', special: true, optional: true },
     { id: 'go-nv', label: 'Go Nevada County Calendar' },
     { id: 'arts', label: 'Arts Council Calendar' },
-    { id: 'chamber', label: 'Grass Valley Chamber Newsletter (2 weeks prior)', special: true },
+    { id: 'chamber', label: 'Grass Valley Chamber Newsletter (2 weeks prior)', special: true, optional: true },
     { id: 'kvmr', label: 'KVMR Calendar' },
     { id: 'fb-event', label: 'Facebook Event Page' },
     { id: 'fb-nsh', label: 'NSH Facebook Page' },
@@ -30,8 +30,8 @@ const EventManagementApp = () => {
     { id: 'lake-wildwood', label: 'Lake Wildwood Page' },
     { id: 'nextdoor', label: 'NextDoor' },
     { id: 'union-cal', label: 'Union Event Calendar' },
-    { id: 'union-ad', label: 'Union Advertisement ($270 - rare)', special: true },
-    { id: 'other', label: 'Other' }
+    { id: 'union-ad', label: 'Union Advertisement ($270 - rare)', special: true, optional: true },
+    { id: 'other', label: 'Other', optional: true }
   ];
 
   const planningChecklist = [
@@ -177,9 +177,10 @@ const EventManagementApp = () => {
   };
 
   const getChecklistProgress = (checklist) => {
-    const completed = Object.values(checklist || {}).filter(Boolean).length;
-    if (!marketingChecklist.length) return 0;
-    return Math.round((completed / marketingChecklist.length) * 100);
+    const requiredItems = marketingChecklist.filter(item => !item.optional);
+    if (!requiredItems.length) return 0;
+    const completed = requiredItems.filter(item => checklist?.[item.id]).length;
+    return Math.round((completed / requiredItems.length) * 100);
   };
 
   const getPlanningProgress = (planning) => {
@@ -201,8 +202,9 @@ const EventManagementApp = () => {
   };
 
   const getChecklistCompletion = (checklist) => {
-    const completed = Object.values(checklist).filter(v => v).length;
-    return `${completed}/${marketingChecklist.length}`;
+    const requiredItems = marketingChecklist.filter(item => !item.optional);
+    const completed = requiredItems.filter(item => checklist?.[item.id]).length;
+    return `${completed}/${requiredItems.length}`;
   };
 
   const getPlanningCompletion = (planning) => {
@@ -901,9 +903,6 @@ const EventManagementApp = () => {
             {events.map(event => {
               const daysUntil = calculateDaysUntil(event.date);
               const progress = getChecklistProgress(event.checklist);
-              const statusColor = getStatusColor(progress);
-              const statusLabel = getStatusLabel(progress);
-              const statusText = statusLabel === 'On track' ? statusLabel : `${statusLabel} pace`;
               const isPastEvent = daysUntil !== null && daysUntil < 0;
               const planningProgress = getPlanningProgress(event.planningChecklist);
 
@@ -929,29 +928,16 @@ const EventManagementApp = () => {
                       <span>{event.isTBD ? 'TBD' : new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     </div>
 
-                    {!isPastEvent && event.targetAttendance && (
-                      <>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs text-stone-600">Progress</span>
-                          <span className={`text-xs font-medium ${statusColor}`}>{progress}%</span>
-                        </div>
-                        <div className="h-2 bg-stone-100 rounded-full overflow-hidden mb-3 shadow-inner">
-                          <div
-                            className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
-                            style={{ width: `${Math.min(progress, 100)}%` }}
-                          />
-                        </div>
-                        <div className="text-xs text-stone-600">
-                          Status: <span className="font-medium text-stone-800">{statusText}</span>
-                        </div>
-                        <div className="text-xs text-stone-600 mt-1">
-                          Goal: {event.targetAttendance} / Current: {event.currentRSVPs || 0}
-                        </div>
-                      </>
-                    )}
-
                     {!isPastEvent && (
                       <div className="mt-3 space-y-2 text-xs text-stone-600">
+                        {(event.targetAttendance || event.currentRSVPs) && (
+                          <div className="flex items-center justify-between">
+                            <span>Goal / Current</span>
+                            <span className="font-medium text-stone-800">
+                              {event.targetAttendance || 0} / {event.currentRSVPs || 0}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <span>Marketing progress</span>
                           <span className="font-medium text-stone-800">{progress}%</span>
