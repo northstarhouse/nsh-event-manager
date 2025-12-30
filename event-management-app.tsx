@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Upload, Plus, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 
 const EventManagementApp = () => {
@@ -6,6 +6,8 @@ const EventManagementApp = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showNewEventForm, setShowNewEventForm] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(null);
+  const [activeTab, setActiveTab] = useState('marketing');
+  const touchStartX = useRef(null);
   const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzcuMhZ1h15zP7IgYhyCBChgkx_mbe23G6756V2_lHNT1grfgKR-AuZxbHt3t806h8-/exec';
   const STORAGE_KEY = 'nsh-events-cache-v1';
   const FLYER_KEY = 'nsh-event-flyers-v1';
@@ -32,6 +34,22 @@ const EventManagementApp = () => {
     { id: 'other', label: 'Other' }
   ];
 
+  const planningChecklist = [
+    { id: 'event-type', label: 'Event type' },
+    { id: 'budget-confirmed', label: 'Budget confirmed' },
+    { id: 'layout-finalized', label: 'Layout finalized' },
+    { id: 'av-needs', label: 'AV needs' },
+    { id: 'power-checked', label: 'Power checked' },
+    { id: 'rentals-ordered', label: 'Rentals ordered' },
+    { id: 'food-plan', label: 'Food plan' },
+    { id: 'alcohol-license', label: 'Alcohol license (if applicable)' },
+    { id: 'volunteer-roles', label: 'Volunteer roles assigned' },
+    { id: 'staff-lead', label: 'Staff lead assigned' },
+    { id: 'checkin-ready', label: 'Check-in system ready' },
+    { id: 'program-ready', label: 'Program / agenda printed or shared' },
+    { id: 'signage-ready', label: 'Signage ready' }
+  ];
+
   const [newEvent, setNewEvent] = useState({
     name: '',
     date: '',
@@ -47,6 +65,7 @@ const EventManagementApp = () => {
     currentRSVPs: '',
     flyerImage: null,
     checklist: {},
+    planningChecklist: {},
     notes: '',
     postEventAttendance: '',
     postEventNotes: ''
@@ -66,6 +85,9 @@ const EventManagementApp = () => {
         ...event,
         date: normalizeDateForInput(event.date),
         checklist: typeof event.checklist === 'string' ? JSON.parse(event.checklist || '{}') : (event.checklist || {}),
+        planningChecklist: typeof event.planningChecklist === 'string'
+          ? JSON.parse(event.planningChecklist || '{}')
+          : (event.planningChecklist || {}),
         flyerImage: storedFlyers[event.id] || null
       }));
       setEvents(normalizedEvents);
@@ -160,6 +182,12 @@ const EventManagementApp = () => {
     return Math.round((completed / marketingChecklist.length) * 100);
   };
 
+  const getPlanningProgress = (planning) => {
+    const completed = Object.values(planning || {}).filter(item => item && item.done).length;
+    if (!planningChecklist.length) return 0;
+    return Math.round((completed / planningChecklist.length) * 100);
+  };
+
   const getStatusColor = (percentage) => {
     if (percentage >= 90) return 'text-emerald-600';
     if (percentage >= 70) return 'text-stone-600';
@@ -177,21 +205,17 @@ const EventManagementApp = () => {
     return `${completed}/${marketingChecklist.length}`;
   };
 
+  const getPlanningCompletion = (planning) => {
+    const completed = Object.values(planning || {}).filter(item => item && item.done).length;
+    return `${completed}/${planningChecklist.length}`;
+  };
+
   const normalizeDateForInput = (value) => {
     if (!value) return '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return '';
     return parsed.toISOString().slice(0, 10);
-  };
-
-  const getNudgeMessage = (event, progress, daysUntil) => {
-    if (daysUntil === null || daysUntil < 0) return null;
-    if (!event.targetAttendance) return 'Set a target attendance to get a tailored nudge.';
-    if (progress >= 90) return 'Keep momentum: share a reminder and highlight what is new.';
-    if (daysUntil <= 14) return 'Reshare the flyer and post a two-week reminder.';
-    if (daysUntil <= 30) return 'Post a reminder and reshare the flyer.';
-    return 'Schedule a reminder post and confirm your promo plan.';
   };
 
   const handleImageUpload = (e) => {
@@ -234,6 +258,7 @@ const EventManagementApp = () => {
       currentRSVPs: '',
       flyerImage: null,
       checklist: {},
+      planningChecklist: {},
       notes: '',
       postEventAttendance: '',
       postEventNotes: ''
@@ -251,6 +276,56 @@ const EventManagementApp = () => {
             [itemId]: !event.checklist[itemId]
           }
         };
+        return updatedEvent;
+      }
+      return event;
+    });
+    setEvents(nextEvents);
+    persistEvents(nextEvents);
+    if (selectedEvent && selectedEvent.id === eventId && updatedEvent) {
+      setSelectedEvent(updatedEvent);
+    }
+    if (updatedEvent) {
+      saveEvent(updatedEvent);
+    }
+  };
+
+  const togglePlanningItem = (eventId, itemId) => {
+    let updatedEvent = null;
+    const nextEvents = events.map(event => {
+      if (event.id === eventId) {
+        const current = event.planningChecklist || {};
+        const entry = current[itemId] || { done: false, note: '' };
+        const nextChecklist = {
+          ...current,
+          [itemId]: { ...entry, done: !entry.done }
+        };
+        updatedEvent = { ...event, planningChecklist: nextChecklist };
+        return updatedEvent;
+      }
+      return event;
+    });
+    setEvents(nextEvents);
+    persistEvents(nextEvents);
+    if (selectedEvent && selectedEvent.id === eventId && updatedEvent) {
+      setSelectedEvent(updatedEvent);
+    }
+    if (updatedEvent) {
+      saveEvent(updatedEvent);
+    }
+  };
+
+  const updatePlanningNote = (eventId, itemId, note) => {
+    let updatedEvent = null;
+    const nextEvents = events.map(event => {
+      if (event.id === eventId) {
+        const current = event.planningChecklist || {};
+        const entry = current[itemId] || { done: false, note: '' };
+        const nextChecklist = {
+          ...current,
+          [itemId]: { ...entry, note }
+        };
+        updatedEvent = { ...event, planningChecklist: nextChecklist };
         return updatedEvent;
       }
       return event;
@@ -284,36 +359,24 @@ const EventManagementApp = () => {
     }
   };
 
-  const getSuggestions = (level, daysUntil) => {
-    const highImpact = [
-      'Post a reminder with urgency framing ("2 weeks away")',
-      'Share to Stories or reshare the flyer',
-      'Send a reminder email or calendar post',
-      'Personally invite 5-10 people or partners'
-    ];
-
-    const mediumImpact = [
-      'Add a FAQ or clarification post',
-      'Repost with a different headline or image',
-      'Highlight what attendees will experience'
-    ];
-
-    const optionalBoost = [
-      'Consider adding an incentive (free, bonus, reminder framing)',
-      'Review: does the event need clearer positioning?'
-    ];
-
-    if (level === 'high') return highImpact;
-    if (level === 'medium') return mediumImpact;
-    return optionalBoost;
-  };
-
   if (selectedEvent) {
     const daysUntil = calculateDaysUntil(selectedEvent.date);
-    const progress = getChecklistProgress(selectedEvent.checklist);
-    const statusColor = getStatusColor(progress);
-    const statusLabel = getStatusLabel(progress);
+    const marketingProgress = getChecklistProgress(selectedEvent.checklist);
+    const planningProgress = getPlanningProgress(selectedEvent.planningChecklist);
+    const statusColor = getStatusColor(marketingProgress);
+    const statusLabel = getStatusLabel(marketingProgress);
     const isPastEvent = daysUntil !== null && daysUntil < 0;
+    const handleTouchStart = (e) => {
+      touchStartX.current = e.touches[0].clientX;
+    };
+    const handleTouchEnd = (e) => {
+      if (touchStartX.current === null) return;
+      const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+      if (Math.abs(deltaX) > 60) {
+        setActiveTab(deltaX < 0 ? 'planning' : 'marketing');
+      }
+      touchStartX.current = null;
+    };
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-stone-50 via-stone-100 to-amber-50 p-4 sm:p-6">
@@ -325,7 +388,11 @@ const EventManagementApp = () => {
             &larr; Back to Dashboard
           </button>
 
-          <div className="bg-white rounded-lg shadow-lg border border-stone-200 overflow-hidden">
+          <div
+            className="bg-white rounded-lg shadow-lg border border-stone-200 overflow-hidden"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             {selectedEvent.flyerImage && (
               <div className="w-full h-64 bg-gray-100">
                 <img
@@ -336,268 +403,301 @@ const EventManagementApp = () => {
               </div>
             )}
 
-              <div className="p-8">
-                <div className="mb-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Event Name</label>
-                    <input
-                      type="text"
-                      value={selectedEvent.name}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'name', e.target.value)}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-2xl font-light text-stone-900"
-                      placeholder="Event name"
-                    />
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-stone-700">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={18} />
-                      {selectedEvent.isTBD ? (
-                        <span>TBD</span>
-                      ) : (
-                        <input
-                          type="date"
-                          value={selectedEvent.date}
-                          onChange={(e) => updateEventField(selectedEvent.id, 'date', e.target.value)}
-                          className="px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
-                        />
-                      )}
-                    </div>
-                    {daysUntil !== null && !isPastEvent && (
-                      <div className="flex items-center gap-2">
-                        <Clock size={18} />
-                        <span>{daysUntil} days away</span>
-                      </div>
+            <div className="p-8">
+              <div className="mb-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-2">Event Name</label>
+                  <input
+                    type="text"
+                    value={selectedEvent.name}
+                    onChange={(e) => updateEventField(selectedEvent.id, 'name', e.target.value)}
+                    className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-2xl font-light text-stone-900"
+                    placeholder="Event name"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-stone-700">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={18} />
+                    {selectedEvent.isTBD ? (
+                      <span>TBD</span>
+                    ) : (
+                      <input
+                        type="date"
+                        value={normalizeDateForInput(selectedEvent.date)}
+                        onChange={(e) => updateEventField(selectedEvent.id, 'date', e.target.value)}
+                        className="px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
+                      />
                     )}
                   </div>
-                </div>
-
-              {!isPastEvent && selectedEvent.targetAttendance && (
-                <div className="mb-8 p-6 bg-gradient-to-br from-stone-50 to-stone-100 rounded-lg border border-stone-200 shadow-sm">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-medium text-stone-900">Marketing Progress</span>
-                    <span className={`text-sm font-medium ${statusColor}`}>{statusLabel}</span>
-                  </div>
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="flex-1 h-3 bg-white rounded-full overflow-hidden shadow-inner">
-                      <div
-                        className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
-                        style={{ width: `${Math.min(progress, 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-lg font-light text-stone-900">{progress}%</span>
-                  </div>
-                  <div className="text-sm text-stone-700">
-                    {selectedEvent.currentRSVPs || 0} of {selectedEvent.targetAttendance} attendees
-                  </div>
-
-                  {progress < 90 && daysUntil <= 30 && (
-                    <div className="mt-4 pt-4 border-t border-stone-200">
-                      <p className="text-sm text-stone-800 mb-3">
-                        You're {daysUntil > 14 ? `${daysUntil} days out` : daysUntil > 7 ? 'two weeks out' : 'one week out'} and have completed {getChecklistCompletion(selectedEvent.checklist)} marketing tasks ({progress}%). Attendance is {selectedEvent.currentRSVPs || 0} of {selectedEvent.targetAttendance || 0}.
-                      </p>
-                      <p className="text-sm font-medium text-stone-900 mb-3">What level of action feels right?</p>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                          onClick={() => setShowSuggestions(showSuggestions === 'high' ? null : 'high')}
-                          className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
-                        >
-                          High-Impact
-                        </button>
-                        <button
-                          onClick={() => setShowSuggestions(showSuggestions === 'medium' ? null : 'medium')}
-                          className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
-                        >
-                          Medium-Impact
-                        </button>
-                        <button
-                          onClick={() => setShowSuggestions(showSuggestions === 'optional' ? null : 'optional')}
-                          className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
-                        >
-                          Optional Boost
-                        </button>
-                      </div>
-                      {showSuggestions && (
-                        <ul className="mt-4 space-y-2">
-                          {getSuggestions(showSuggestions, daysUntil).map((suggestion, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm text-stone-800">
-                              <span className="text-amber-600 mt-1">-</span>
-                              <span>{suggestion}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                  {daysUntil !== null && !isPastEvent && (
+                    <div className="flex items-center gap-2">
+                      <Clock size={18} />
+                      <span>{daysUntil} days away</span>
                     </div>
                   )}
                 </div>
-              )}
-
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-light text-stone-900">Marketing Checklist</h2>
-                  <span className="text-sm text-stone-600 font-medium">{getChecklistCompletion(selectedEvent.checklist)} complete</span>
-                </div>
-                <div className="space-y-2">
-                  {marketingChecklist.map(item => (
-                    <label key={item.id} className="flex items-start sm:items-center gap-3 p-3 hover:bg-stone-50 rounded-md cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={selectedEvent.checklist[item.id] || false}
-                        onChange={() => toggleChecklistItem(selectedEvent.id, item.id)}
-                        className="w-5 h-5 text-amber-600 rounded focus:ring-amber-400"
-                      />
-                      <span className={`flex-1 ${selectedEvent.checklist[item.id] ? 'line-through text-gray-400' : 'text-stone-800'} ${item.special ? 'text-sm italic' : ''}`}>
-                        {item.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
               </div>
 
-              <div className="mb-8">
-                <h2 className="text-xl font-light text-stone-900 mb-4">Event Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Time</label>
-                    <input
-                      type="time"
-                      value={selectedEvent.time || ''}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'time', e.target.value)}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="Event time"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Goals</label>
-                    <input
-                      type="text"
-                      value={selectedEvent.goals || ''}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'goals', e.target.value)}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="What is this event aiming to achieve?"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Outcomes</label>
-                    <textarea
-                      value={selectedEvent.outcomes || ''}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'outcomes', e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="Key outcomes or takeaways"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <h2 className="text-xl font-light text-stone-900 mb-4">Budget & Promotion</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Advertising</label>
-                    <input
-                      type="text"
-                      value={selectedEvent.advertising || ''}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'advertising', e.target.value)}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="Channels, partners, or placements"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Volunteers</label>
-                    <input
-                      type="text"
-                      value={selectedEvent.volunteers || ''}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'volunteers', e.target.value)}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="Names or count"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Total Spent</label>
-                    <input
-                      type="number"
-                      value={selectedEvent.totalSpent || ''}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'totalSpent', e.target.value)}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Total Earned</label>
-                    <input
-                      type="number"
-                      value={selectedEvent.totalEarned || ''}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'totalEarned', e.target.value)}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <label className="block text-sm font-medium text-stone-900 mb-2">Current RSVPs / Tickets</label>
-                <input
-                  type="number"
-                  value={selectedEvent.currentRSVPs}
-                  onChange={(e) => updateEventField(selectedEvent.id, 'currentRSVPs', e.target.value)}
-                  className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                  placeholder="Update attendance count"
-                />
-              </div>
-
-              <div className="mb-8">
-                <label className="block text-sm font-medium text-stone-900 mb-2">Notes</label>
-                <textarea
-                  value={selectedEvent.notes}
-                  onChange={(e) => updateEventField(selectedEvent.id, 'notes', e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                  placeholder="Ongoing thoughts and planning notes..."
-                />
-              </div>
-
-              <div className="border-t border-stone-200 pt-8">
-                <h2 className="text-xl font-light text-stone-900 mb-4">Post-Event Reflection</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Actual Attendance</label>
-                    <input
-                      type="number"
-                      value={selectedEvent.postEventAttendance}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'postEventAttendance', e.target.value)}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="Final attendance count"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-2">Reflection Notes</label>
-                    <textarea
-                      value={selectedEvent.postEventNotes}
-                      onChange={(e) => updateEventField(selectedEvent.id, 'postEventNotes', e.target.value)}
-                      rows={4}
-                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      placeholder="What worked well? What would you change? Key takeaways..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 flex justify-end">
+              <div className="mb-6 flex w-full rounded-full border border-stone-200 bg-stone-50 p-1 text-xs font-medium">
                 <button
-                  onClick={() => deleteEvent(selectedEvent.id)}
-                  className="px-4 py-2 border border-stone-300 text-stone-700 rounded-md hover:bg-stone-100 transition-colors"
+                  onClick={() => setActiveTab('marketing')}
+                  className={`flex-1 rounded-full px-3 py-2 transition-colors ${activeTab === 'marketing' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600'}`}
                 >
-                  Delete Event
+                  Marketing
+                </button>
+                <button
+                  onClick={() => setActiveTab('planning')}
+                  className={`flex-1 rounded-full px-3 py-2 transition-colors ${activeTab === 'planning' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600'}`}
+                >
+                  Event Planning
                 </button>
               </div>
+
+              {activeTab === 'marketing' && (
+                <>
+                  {!isPastEvent && (
+                    <div className="mb-8 p-6 bg-gradient-to-br from-stone-50 to-stone-100 rounded-lg border border-stone-200 shadow-sm">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm font-medium text-stone-900">Marketing Progress</span>
+                        <span className={`text-sm font-medium ${statusColor}`}>{statusLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-4 mb-2">
+                        <div className="flex-1 h-3 bg-white rounded-full overflow-hidden shadow-inner">
+                          <div
+                            className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
+                            style={{ width: `${Math.min(marketingProgress, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-lg font-light text-stone-900">{marketingProgress}%</span>
+                      </div>
+                      <div className="text-sm text-stone-700">
+                        {getChecklistCompletion(selectedEvent.checklist)} tasks completed
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-stone-200">
+                        <p className="text-sm text-stone-800 mb-3">
+                          You're {daysUntil > 14 ? `${daysUntil} days out` : daysUntil > 7 ? 'two weeks out' : 'one week out'} and have completed {getChecklistCompletion(selectedEvent.checklist)} marketing tasks ({marketingProgress}%). Attendance is {selectedEvent.currentRSVPs || 0} of {selectedEvent.targetAttendance || 0}.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-light text-stone-900">Marketing Checklist</h2>
+                      <span className="text-sm text-stone-600 font-medium">{getChecklistCompletion(selectedEvent.checklist)} complete</span>
+                    </div>
+                    <div className="space-y-2">
+                      {marketingChecklist.map(item => (
+                        <label key={item.id} className="flex items-start sm:items-center gap-3 p-3 hover:bg-stone-50 rounded-md cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={selectedEvent.checklist[item.id] || false}
+                            onChange={() => toggleChecklistItem(selectedEvent.id, item.id)}
+                            className="w-5 h-5 text-amber-600 rounded focus:ring-amber-400"
+                          />
+                          <span className={`flex-1 ${selectedEvent.checklist[item.id] ? 'line-through text-gray-400' : 'text-stone-800'} ${item.special ? 'text-sm italic' : ''}`}>
+                            {item.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <h2 className="text-xl font-light text-stone-900 mb-4">Event Details</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Time</label>
+                        <input
+                          type="time"
+                          value={selectedEvent.time || ''}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'time', e.target.value)}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="Event time"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Goals</label>
+                        <input
+                          type="text"
+                          value={selectedEvent.goals || ''}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'goals', e.target.value)}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="What is this event aiming to achieve?"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Outcomes</label>
+                        <textarea
+                          value={selectedEvent.outcomes || ''}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'outcomes', e.target.value)}
+                          rows={3}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="Key outcomes or takeaways"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <h2 className="text-xl font-light text-stone-900 mb-4">Budget & Promotion</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Advertising</label>
+                        <input
+                          type="text"
+                          value={selectedEvent.advertising || ''}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'advertising', e.target.value)}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="Channels, partners, or placements"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Volunteers</label>
+                        <input
+                          type="text"
+                          value={selectedEvent.volunteers || ''}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'volunteers', e.target.value)}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="Names or count"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Total Spent</label>
+                        <input
+                          type="number"
+                          value={selectedEvent.totalSpent || ''}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'totalSpent', e.target.value)}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Total Earned</label>
+                        <input
+                          type="number"
+                          value={selectedEvent.totalEarned || ''}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'totalEarned', e.target.value)}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Current RSVPs / Tickets</label>
+                    <input
+                      type="number"
+                      value={selectedEvent.currentRSVPs}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'currentRSVPs', e.target.value)}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="Update attendance count"
+                    />
+                  </div>
+
+                  <div className="mb-8">
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Notes</label>
+                    <textarea
+                      value={selectedEvent.notes}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'notes', e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="Ongoing thoughts and planning notes..."
+                    />
+                  </div>
+
+                  <div className="border-t border-stone-200 pt-8">
+                    <h2 className="text-xl font-light text-stone-900 mb-4">Post-Event Reflection</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Actual Attendance</label>
+                        <input
+                          type="number"
+                          value={selectedEvent.postEventAttendance}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'postEventAttendance', e.target.value)}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="Final attendance count"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-stone-900 mb-2">Reflection Notes</label>
+                        <textarea
+                          value={selectedEvent.postEventNotes}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'postEventNotes', e.target.value)}
+                          rows={4}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          placeholder="What worked well? What would you change? Key takeaways..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex justify-end">
+                    <button
+                      onClick={() => deleteEvent(selectedEvent.id)}
+                      className="px-4 py-2 border border-stone-300 text-stone-700 rounded-md hover:bg-stone-100 transition-colors"
+                    >
+                      Delete Event
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'planning' && (
+                <div className="mb-8 p-6 bg-gradient-to-br from-stone-50 to-stone-100 rounded-lg border border-stone-200 shadow-sm">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-medium text-stone-900">Event Planning Progress</span>
+                    <span className="text-sm font-medium text-stone-700">{planningProgress}%</span>
+                  </div>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex-1 h-3 bg-white rounded-full overflow-hidden shadow-inner">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
+                        style={{ width: `${Math.min(planningProgress, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-lg font-light text-stone-900">{planningProgress}%</span>
+                  </div>
+                  <div className="text-sm text-stone-700 mb-4">
+                    {getPlanningCompletion(selectedEvent.planningChecklist)} tasks completed
+                  </div>
+
+                  <div className="space-y-3">
+                    {planningChecklist.map(item => {
+                      const entry = (selectedEvent.planningChecklist || {})[item.id] || { done: false, note: '' };
+                      return (
+                        <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-md bg-white p-3 border border-stone-200">
+                          <label className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={entry.done || false}
+                              onChange={() => togglePlanningItem(selectedEvent.id, item.id)}
+                              className="w-5 h-5 text-amber-600 rounded focus:ring-amber-400"
+                            />
+                            <span className={`text-sm ${entry.done ? 'line-through text-gray-400' : 'text-stone-800'}`}>
+                              {item.label}
+                            </span>
+                          </label>
+                          <input
+                            type="text"
+                            value={entry.note || ''}
+                            onChange={(e) => updatePlanningNote(selectedEvent.id, item.id, e.target.value)}
+                            className="flex-1 px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
+                            placeholder="Notes"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-stone-100 to-amber-50 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
@@ -805,7 +905,7 @@ const EventManagementApp = () => {
               const statusLabel = getStatusLabel(progress);
               const statusText = statusLabel === 'On track' ? statusLabel : `${statusLabel} pace`;
               const isPastEvent = daysUntil !== null && daysUntil < 0;
-              const nudge = getNudgeMessage(event, progress, daysUntil);
+              const planningProgress = getPlanningProgress(event.planningChecklist);
 
               return (
                 <div
@@ -845,15 +945,33 @@ const EventManagementApp = () => {
                           Status: <span className="font-medium text-stone-800">{statusText}</span>
                         </div>
                         <div className="text-xs text-stone-600 mt-1">
-                          Goal: {event.targetAttendance} · Current: {event.currentRSVPs || 0}
+                          Goal: {event.targetAttendance} / Current: {event.currentRSVPs || 0}
                         </div>
                       </>
                     )}
 
-                    {!isPastEvent && nudge && (
-                      <div className="mt-3 rounded-md bg-stone-50 border border-stone-200 p-3 text-xs text-stone-700">
-                        <div className="font-medium text-stone-800">Today's nudge</div>
-                        <div className="mt-1">{nudge}</div>
+                    {!isPastEvent && (
+                      <div className="mt-3 space-y-2 text-xs text-stone-600">
+                        <div className="flex items-center justify-between">
+                          <span>Marketing progress</span>
+                          <span className="font-medium text-stone-800">{progress}%</span>
+                        </div>
+                        <div className="h-2 bg-stone-100 rounded-full overflow-hidden shadow-inner">
+                          <div
+                            className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
+                            style={{ width: `${Math.min(progress, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Event planning progress</span>
+                          <span className="font-medium text-stone-800">{planningProgress}%</span>
+                        </div>
+                        <div className="h-2 bg-stone-100 rounded-full overflow-hidden shadow-inner">
+                          <div
+                            className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
+                            style={{ width: `${Math.min(planningProgress, 100)}%` }}
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -881,6 +999,9 @@ const EventManagementApp = () => {
 };
 
 export default EventManagementApp;
+
+
+
 
 
 

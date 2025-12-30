@@ -14,6 +14,7 @@ const HEADERS = [
   'Target Attendance',
   'Current RSVPs',
   'Checklist',
+  'Planning Checklist',
   'Is TBD',
   'Created At',
   'Post Event Attendance',
@@ -66,6 +67,7 @@ function rowToEvent(headers, row) {
     targetAttendance: event['Target Attendance'],
     currentRSVPs: event['Current RSVPs'],
     checklist: event['Checklist'],
+    planningChecklist: event['Planning Checklist'],
     isTBD: String(event['Is TBD']).toLowerCase() === 'true',
     createdAt: event['Created At'],
     postEventAttendance: event['Post Event Attendance'],
@@ -118,6 +120,11 @@ function eventToRow(headers, event) {
         break;
       case 'Checklist':
         row[index] = typeof event.checklist === 'string' ? event.checklist : JSON.stringify(event.checklist || {});
+        break;
+      case 'Planning Checklist':
+        row[index] = typeof event.planningChecklist === 'string'
+          ? event.planningChecklist
+          : JSON.stringify(event.planningChecklist || {});
         break;
       case 'Is TBD':
         row[index] = event.isTBD ? 'true' : 'false';
