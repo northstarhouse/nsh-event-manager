@@ -1010,7 +1010,6 @@ const EventManagementApp = () => {
                     )}
 
                     <div className="flex items-center justify-between text-xs text-stone-600">
-                      <span>{getChecklistCompletion(event.checklist)} tasks</span>
                       {daysUntil !== null && !isPastEvent && (
                         <span className="flex items-center gap-1">
                           <Clock size={12} />
