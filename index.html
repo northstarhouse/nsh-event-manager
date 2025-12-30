@@ -22,6 +22,9 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
+    const rootEl = document.getElementById("root");
+    rootEl.textContent = "Loading...";
+
     const { useState } = React;
 
     const Calendar = ({ size = 24, className = "" }) => (
@@ -606,9 +609,13 @@ const EventManagementApp = () => {
   );
 };
 
-
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<EventManagementApp />);
+    try {
+      const root = ReactDOM.createRoot(rootEl);
+      root.render(<EventManagementApp />);
+    } catch (err) {
+      console.error("Render failed", err);
+      rootEl.innerHTML = "<pre style=\"white-space:pre-wrap;color:#b91c1c;background:#fff1f2;padding:16px;border-radius:12px;border:1px solid #fecdd3;max-width:900px;margin:24px auto;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;\">Render failed: " + String(err) + "</pre>";
+    }
   </script>
 </body>
 </html>
