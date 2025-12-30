@@ -67,6 +67,7 @@ const EventManagementApp = () => {
   const [showSuggestions, setShowSuggestions] = useState(null);
   const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzcuMhZ1h15zP7IgYhyCBChgkx_mbe23G6756V2_lHNT1grfgKR-AuZxbHt3t806h8-/exec';
   const STORAGE_KEY = 'nsh-events-cache-v1';
+  const FLYER_KEY = 'nsh-event-flyers-v1';
 
   const marketingChecklist = [
     { id: 'press-release', label: 'Create Press Release' },
@@ -119,9 +120,11 @@ const EventManagementApp = () => {
       }
       const data = await response.json();
       const loadedEvents = Array.isArray(data.events) ? data.events : [];
+      const storedFlyers = JSON.parse(localStorage.getItem(FLYER_KEY) || '{}');
       const normalizedEvents = loadedEvents.map(event => ({
         ...event,
-        checklist: typeof event.checklist === 'string' ? JSON.parse(event.checklist || '{}') : (event.checklist || {})
+        checklist: typeof event.checklist === 'string' ? JSON.parse(event.checklist || '{}') : (event.checklist || {}),
+        flyerImage: storedFlyers[event.id] || null
       }));
       setEvents(normalizedEvents);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
@@ -145,6 +148,21 @@ const EventManagementApp = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextEvents));
   };
 
+  const persistFlyerImage = (eventId, flyerImage) => {
+    if (!eventId || !flyerImage) return;
+    const stored = JSON.parse(localStorage.getItem(FLYER_KEY) || '{}');
+    stored[eventId] = flyerImage;
+    localStorage.setItem(FLYER_KEY, JSON.stringify(stored));
+  };
+
+  const removeFlyerImage = (eventId) => {
+    const stored = JSON.parse(localStorage.getItem(FLYER_KEY) || '{}');
+    if (stored[eventId]) {
+      delete stored[eventId];
+      localStorage.setItem(FLYER_KEY, JSON.stringify(stored));
+    }
+  };
+
   const saveEvent = async (event) => {
     if (!SHEETS_API_URL) return;
     try {
@@ -163,6 +181,7 @@ const EventManagementApp = () => {
     setEvents(nextEvents);
     persistEvents(nextEvents);
     setSelectedEvent(null);
+    removeFlyerImage(eventId);
     if (!SHEETS_API_URL) return;
     try {
       await fetch(SHEETS_API_URL, {
@@ -239,6 +258,9 @@ const EventManagementApp = () => {
     const nextEvents = [...events, event];
     setEvents(nextEvents);
     persistEvents(nextEvents);
+    if (event.flyerImage) {
+      persistFlyerImage(event.id, event.flyerImage);
+    }
     saveEvent(event);
     setShowNewEventForm(false);
     setNewEvent({
