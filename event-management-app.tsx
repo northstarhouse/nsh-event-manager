@@ -183,7 +183,7 @@ const EventManagementApp = () => {
             onClick={() => setSelectedEvent(null)}
             className="mb-6 text-amber-600 hover:text-amber-700 font-medium"
           >
-            ← Back to Dashboard
+            <- Back to Dashboard
           </button>
 
           <div className="bg-white rounded-lg shadow-lg border border-rose-200 overflow-hidden">
@@ -261,7 +261,7 @@ const EventManagementApp = () => {
                         <ul className="mt-4 space-y-2">
                           {getSuggestions(showSuggestions, daysUntil).map((suggestion, idx) => (
                             <li key={idx} className="flex items-start gap-2 text-sm text-rose-800">
-                              <span className="text-amber-500 mt-1">•</span>
+                              <span className="text-amber-500 mt-1">-</span>
                               <span>{suggestion}</span>
                             </li>
                           ))}
@@ -542,7 +542,7 @@ const EventManagementApp = () => {
             All event data automatically syncs to Google Sheets for backup, historical tracking, and benchmarking future events.
           </p>
           <button className="text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors">
-            Connect Google Sheets →
+            Connect Google Sheets ->
           </button>
         </div>
       </div>
@@ -551,3 +551,5 @@ const EventManagementApp = () => {
 };
 
 export default EventManagementApp;
+
+
