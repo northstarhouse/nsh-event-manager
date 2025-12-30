@@ -961,13 +961,20 @@ const EventManagementApp = () => {
                   )}
                   <div className="p-5">
                     <h3 className="text-lg font-medium text-stone-900 mb-2">{event.name}</h3>
-                    <div className="flex items-center gap-2 text-sm text-stone-700 mb-3">
-                      <Calendar size={14} />
-                      <span>
-                        {event.isTBD
-                          ? 'TBD'
-                          : `${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}${event.time ? ` · ${formatTimeDisplay(event.time)}` : ''}`}
-                      </span>
+                    <div className="flex items-center justify-between text-sm text-stone-700 mb-3">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={14} />
+                        <span>
+                          {event.isTBD
+                            ? 'TBD'
+                            : `${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}${event.time ? ` · ${formatTimeDisplay(event.time)}` : ''}`}
+                        </span>
+                      </div>
+                      {daysUntil !== null && !isPastEvent && (
+                        <span className="text-xs text-stone-500">
+                          {daysUntil} days
+                        </span>
+                      )}
                     </div>
 
                     {!isPastEvent && (
@@ -1009,17 +1016,9 @@ const EventManagementApp = () => {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between text-xs text-stone-600">
-                      {daysUntil !== null && !isPastEvent && (
-                        <span className="flex items-center gap-1">
-                          <Clock size={12} />
-                          {daysUntil} days
-                        </span>
-                      )}
-                      {isPastEvent && (
-                        <span className="text-stone-500">Past event</span>
-                      )}
-                    </div>
+                    {isPastEvent && (
+                      <div className="text-xs text-stone-500">Past event</div>
+                    )}
                   </div>
                 </div>
               );
