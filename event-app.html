@@ -143,6 +143,7 @@ const EventManagementApp = () => {
       const normalizedEvents = loadedEvents.map(event => ({
         ...event,
         date: normalizeDateForInput(event.date),
+        time: normalizeTimeForInput(event.time),
         checklist: typeof event.checklist === 'string' ? JSON.parse(event.checklist || '{}') : (event.checklist || {}),
         planningChecklist: typeof event.planningChecklist === 'string'
           ? JSON.parse(event.planningChecklist || '{}')
@@ -277,6 +278,36 @@ const EventManagementApp = () => {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return '';
     return parsed.toISOString().slice(0, 10);
+  };
+
+  const normalizeTimeForInput = (value) => {
+    if (!value) return '';
+    if (/^\d{2}:\d{2}$/.test(value)) return value;
+    const hhmmss = value.match(/^(\d{1,2}):(\d{2}):\d{2}$/);
+    if (hhmmss) {
+      return `${hhmmss[1].padStart(2, '0')}:${hhmmss[2]}`;
+    }
+    const ampm = value.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+    if (ampm) {
+      let hours = parseInt(ampm[1], 10);
+      const minutes = ampm[2];
+      const isPm = ampm[3].toLowerCase() === 'pm';
+      if (isPm && hours < 12) hours += 12;
+      if (!isPm && hours === 12) hours = 0;
+      return `${String(hours).padStart(2, '0')}:${minutes}`;
+    }
+    return '';
+  };
+
+  const formatTimeDisplay = (value) => {
+    if (!value) return '';
+    const normalized = normalizeTimeForInput(value);
+    if (!normalized) return value;
+    const [hoursStr, minutes] = normalized.split(':');
+    const hours = parseInt(hoursStr, 10);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+    return `${displayHours}:${minutes}${period}`;
   };
 
   const handleImageUpload = (e) => {
@@ -482,12 +513,19 @@ const EventManagementApp = () => {
                     {selectedEvent.isTBD ? (
                       <span>TBD</span>
                     ) : (
-                      <input
-                        type="date"
-                        value={normalizeDateForInput(selectedEvent.date)}
-                        onChange={(e) => updateEventField(selectedEvent.id, 'date', e.target.value)}
-                        className="px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
-                      />
+                      <>
+                        <input
+                          type="date"
+                          value={normalizeDateForInput(selectedEvent.date)}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'date', e.target.value)}
+                          className="px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
+                        />
+                        {selectedEvent.time && (
+                          <span className="text-sm text-stone-700">
+                            · {formatTimeDisplay(selectedEvent.time)}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                   {daysUntil !== null && !isPastEvent && (
@@ -532,7 +570,7 @@ const EventManagementApp = () => {
                         <span className="text-lg font-light text-stone-900">{marketingProgress}%</span>
                       </div>
                       <div className="text-sm text-stone-700">
-                        {getChecklistCompletion(selectedEvent.checklist)} tasks completed
+                        {getChecklistCompletion(selectedEvent.checklist)} marketing tasks
                       </div>
                       <div className="mt-4 pt-4 border-t border-stone-200">
                         <p className="text-sm text-stone-800 mb-3">
@@ -571,7 +609,7 @@ const EventManagementApp = () => {
                         <label className="block text-sm font-medium text-stone-900 mb-2">Time</label>
                         <input
                           type="time"
-                          value={selectedEvent.time || ''}
+                          value={normalizeTimeForInput(selectedEvent.time) || ''}
                           onChange={(e) => updateEventField(selectedEvent.id, 'time', e.target.value)}
                           className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
                           placeholder="Event time"
@@ -721,7 +759,7 @@ const EventManagementApp = () => {
                     <span className="text-lg font-light text-stone-900">{planningProgress}%</span>
                   </div>
                   <div className="text-sm text-stone-700 mb-4">
-                    {getPlanningCompletion(selectedEvent.planningChecklist)} tasks completed
+                    {getPlanningCompletion(selectedEvent.planningChecklist)} planning tasks
                   </div>
 
                   <div className="space-y-3">
@@ -984,7 +1022,11 @@ const EventManagementApp = () => {
                     <h3 className="text-lg font-medium text-stone-900 mb-2">{event.name}</h3>
                     <div className="flex items-center gap-2 text-sm text-stone-700 mb-3">
                       <Calendar size={14} />
-                      <span>{event.isTBD ? 'TBD' : new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <span>
+                        {event.isTBD
+                          ? 'TBD'
+                          : `${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}${event.time ? ` · ${formatTimeDisplay(event.time)}` : ''}`}
+                      </span>
                     </div>
 
                     {!isPastEvent && (
@@ -1052,6 +1094,7 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
 
 
 
