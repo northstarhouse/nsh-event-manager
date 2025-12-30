@@ -156,11 +156,19 @@ const EventManagementApp = () => {
 
   const saveEvent = async (event) => {
     if (!SHEETS_API_URL) return;
+    const payloadEvent = {
+      ...event,
+      checklist: typeof event.checklist === 'string' ? event.checklist : JSON.stringify(event.checklist || {}),
+      planningChecklist: typeof event.planningChecklist === 'string'
+        ? event.planningChecklist
+        : JSON.stringify(event.planningChecklist || {}),
+      planningNotes: event.planningNotes || ''
+    };
     try {
       await fetch(SHEETS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'upsert', event })
+        body: JSON.stringify({ action: 'upsert', event: payloadEvent })
       });
     } catch (error) {
       console.error('Failed to save event to Sheets', error);
