@@ -66,6 +66,7 @@ const EventManagementApp = () => {
     flyerImage: null,
     checklist: {},
     planningChecklist: {},
+    planningNotes: '',
     notes: '',
     postEventAttendance: '',
     postEventNotes: ''
@@ -89,6 +90,7 @@ const EventManagementApp = () => {
         planningChecklist: typeof event.planningChecklist === 'string'
           ? JSON.parse(event.planningChecklist || '{}')
           : (event.planningChecklist || {}),
+        planningNotes: event.planningNotes || '',
         flyerImage: storedFlyers[event.id] || null
       }));
       setEvents(normalizedEvents);
@@ -301,6 +303,7 @@ const EventManagementApp = () => {
       flyerImage: null,
       checklist: {},
       planningChecklist: {},
+      planningNotes: '',
       notes: '',
       postEventAttendance: '',
       postEventNotes: ''
