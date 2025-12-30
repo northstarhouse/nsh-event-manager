@@ -6,6 +6,7 @@ const EventManagementApp = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showNewEventForm, setShowNewEventForm] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(null);
+  const SHEETS_API_URL = 'PASTE_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const marketingChecklist = [
     { id: 'press-release', label: 'Create Press Release' },
@@ -32,7 +33,14 @@ const EventManagementApp = () => {
   const [newEvent, setNewEvent] = useState({
     name: '',
     date: '',
+    time: '',
     isTBD: false,
+    goals: '',
+    outcomes: '',
+    advertising: '',
+    totalSpent: '',
+    totalEarned: '',
+    volunteers: '',
     targetAttendance: '',
     currentRSVPs: '',
     flyerImage: null,
@@ -41,6 +49,42 @@ const EventManagementApp = () => {
     postEventAttendance: '',
     postEventNotes: ''
   });
+
+  const loadEvents = async () => {
+    if (!SHEETS_API_URL || SHEETS_API_URL.includes('PASTE_APPS_SCRIPT_WEB_APP_URL_HERE')) return;
+    try {
+      const response = await fetch(`${SHEETS_API_URL}?action=list`);
+      if (!response.ok) {
+        throw new Error(`Sheets load failed: ${response.status}`);
+      }
+      const data = await response.json();
+      const loadedEvents = Array.isArray(data.events) ? data.events : [];
+      const normalizedEvents = loadedEvents.map(event => ({
+        ...event,
+        checklist: typeof event.checklist === 'string' ? JSON.parse(event.checklist || '{}') : (event.checklist || {})
+      }));
+      setEvents(normalizedEvents);
+    } catch (error) {
+      console.error('Failed to load events from Sheets', error);
+    }
+  };
+
+  const saveEvent = async (event) => {
+    if (!SHEETS_API_URL || SHEETS_API_URL.includes('PASTE_APPS_SCRIPT_WEB_APP_URL_HERE')) return;
+    try {
+      await fetch(SHEETS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'upsert', event })
+      });
+    } catch (error) {
+      console.error('Failed to save event to Sheets', error);
+    }
+  };
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
 
   const calculateDaysUntil = (dateString) => {
     if (!dateString) return null;
@@ -91,11 +135,19 @@ const EventManagementApp = () => {
       createdAt: new Date().toISOString()
     };
     setEvents([...events, event]);
+    saveEvent(event);
     setShowNewEventForm(false);
     setNewEvent({
       name: '',
       date: '',
+      time: '',
       isTBD: false,
+      goals: '',
+      outcomes: '',
+      advertising: '',
+      totalSpent: '',
+      totalEarned: '',
+      volunteers: '',
       targetAttendance: '',
       currentRSVPs: '',
       flyerImage: null,
@@ -107,38 +159,44 @@ const EventManagementApp = () => {
   };
 
   const toggleChecklistItem = (eventId, itemId) => {
-    setEvents(events.map(event => {
+    let updatedEvent = null;
+    const nextEvents = events.map(event => {
       if (event.id === eventId) {
-        return {
+        updatedEvent = {
           ...event,
           checklist: {
             ...event.checklist,
             [itemId]: !event.checklist[itemId]
           }
         };
+        return updatedEvent;
       }
       return event;
-    }));
-    if (selectedEvent && selectedEvent.id === eventId) {
-      setSelectedEvent({
-        ...selectedEvent,
-        checklist: {
-          ...selectedEvent.checklist,
-          [itemId]: !selectedEvent.checklist[itemId]
-        }
-      });
+    });
+    setEvents(nextEvents);
+    if (selectedEvent && selectedEvent.id === eventId && updatedEvent) {
+      setSelectedEvent(updatedEvent);
+    }
+    if (updatedEvent) {
+      saveEvent(updatedEvent);
     }
   };
 
   const updateEventField = (eventId, field, value) => {
-    setEvents(events.map(event => {
+    let updatedEvent = null;
+    const nextEvents = events.map(event => {
       if (event.id === eventId) {
-        return { ...event, [field]: value };
+        updatedEvent = { ...event, [field]: value };
+        return updatedEvent;
       }
       return event;
-    }));
-    if (selectedEvent && selectedEvent.id === eventId) {
-      setSelectedEvent({ ...selectedEvent, [field]: value });
+    });
+    setEvents(nextEvents);
+    if (selectedEvent && selectedEvent.id === eventId && updatedEvent) {
+      setSelectedEvent(updatedEvent);
+    }
+    if (updatedEvent) {
+      saveEvent(updatedEvent);
     }
   };
 
@@ -295,6 +353,88 @@ const EventManagementApp = () => {
               </div>
 
               <div className="mb-8">
+                <h2 className="text-xl font-light text-stone-900 mb-4">Event Details</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Time</label>
+                    <input
+                      type="time"
+                      value={selectedEvent.time || ''}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'time', e.target.value)}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="Event time"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Goals</label>
+                    <input
+                      type="text"
+                      value={selectedEvent.goals || ''}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'goals', e.target.value)}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="What is this event aiming to achieve?"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Outcomes</label>
+                    <textarea
+                      value={selectedEvent.outcomes || ''}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'outcomes', e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="Key outcomes or takeaways"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <h2 className="text-xl font-light text-stone-900 mb-4">Budget & Promotion</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Advertising</label>
+                    <input
+                      type="text"
+                      value={selectedEvent.advertising || ''}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'advertising', e.target.value)}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="Channels, partners, or placements"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Volunteers</label>
+                    <input
+                      type="text"
+                      value={selectedEvent.volunteers || ''}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'volunteers', e.target.value)}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="Names or count"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Total Spent</label>
+                    <input
+                      type="number"
+                      value={selectedEvent.totalSpent || ''}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'totalSpent', e.target.value)}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Total Earned</label>
+                    <input
+                      type="number"
+                      value={selectedEvent.totalEarned || ''}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'totalEarned', e.target.value)}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-8">
                 <label className="block text-sm font-medium text-stone-900 mb-2">Current RSVPs / Tickets</label>
                 <input
                   type="number"
@@ -370,10 +510,10 @@ const EventManagementApp = () => {
             <div className="bg-gradient-to-br from-white to-stone-50 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 border border-stone-200">
               <h2 className="text-2xl font-light text-stone-900 mb-6">Create New Event</h2>
               
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-stone-900 mb-2">Event Name</label>
-                  <input
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Event Name</label>
+                    <input
                     type="text"
                     value={newEvent.name}
                     onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })}
@@ -400,6 +540,83 @@ const EventManagementApp = () => {
                     />
                     <span className="text-sm text-stone-700">Date TBD</span>
                   </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-2">Time</label>
+                  <input
+                    type="time"
+                    value={newEvent.time}
+                    onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+                    className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                    placeholder="Event time"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-2">Goals</label>
+                  <input
+                    type="text"
+                    value={newEvent.goals}
+                    onChange={(e) => setNewEvent({ ...newEvent, goals: e.target.value })}
+                    className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                    placeholder="What is this event aiming to achieve?"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-2">Outcomes</label>
+                  <textarea
+                    value={newEvent.outcomes}
+                    onChange={(e) => setNewEvent({ ...newEvent, outcomes: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                    placeholder="Key outcomes or takeaways"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-2">Advertising</label>
+                  <input
+                    type="text"
+                    value={newEvent.advertising}
+                    onChange={(e) => setNewEvent({ ...newEvent, advertising: e.target.value })}
+                    className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                    placeholder="Channels, partners, or placements"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-2">Total Spent</label>
+                  <input
+                    type="number"
+                    value={newEvent.totalSpent}
+                    onChange={(e) => setNewEvent({ ...newEvent, totalSpent: e.target.value })}
+                    className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-2">Total Earned</label>
+                  <input
+                    type="number"
+                    value={newEvent.totalEarned}
+                    onChange={(e) => setNewEvent({ ...newEvent, totalEarned: e.target.value })}
+                    className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-2">Volunteers</label>
+                  <input
+                    type="text"
+                    value={newEvent.volunteers}
+                    onChange={(e) => setNewEvent({ ...newEvent, volunteers: e.target.value })}
+                    className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                    placeholder="Names or count"
+                  />
                 </div>
 
                 <div>
