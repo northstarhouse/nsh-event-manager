@@ -239,7 +239,7 @@
             className="mb-6 text-amber-700 hover:text-amber-800 font-medium"
           >
             &larr; Back to Dashboard
-          </a>
+          </button>
 
           <div className="bg-white rounded-lg shadow-lg border border-stone-200 overflow-hidden">
             {selectedEvent.flyerImage && (
@@ -298,19 +298,19 @@
                           className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           High-Impact
-                        </a>
+                        </button>
                         <button
                           onClick={() => setShowSuggestions(showSuggestions === 'medium' ? null : 'medium')}
                           className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           Medium-Impact
-                        </a>
+                        </button>
                         <button
                           onClick={() => setShowSuggestions(showSuggestions === 'optional' ? null : 'optional')}
                           className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           Optional Boost
-                        </a>
+                        </button>
                       </div>
                       {showSuggestions && (
                         <ul className="mt-4 space-y-2">
@@ -417,7 +417,7 @@
           >
             <Plus size={20} />
             New Event
-          </a>
+          </button>
         </div>
 
         {showNewEventForm && (
@@ -505,13 +505,13 @@
                     className="flex-1 px-6 py-3 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-md"
                   >
                     Create Event
-                  </a>
+                  </button>
                   <button
                     onClick={() => setShowNewEventForm(false)}
                     className="px-6 py-3 border border-stone-300 text-stone-800 rounded-md hover:bg-stone-50 transition-colors"
                   >
                     Cancel
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>
@@ -609,6 +609,7 @@
   </script>
 </body>
 </html>
+
 
 
 
