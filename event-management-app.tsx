@@ -694,50 +694,63 @@ const EventManagementApp = () => {
               )}
 
               {activeTab === 'planning' && (
-                <div className="mb-8 p-6 bg-gradient-to-br from-stone-50 to-stone-100 rounded-lg border border-stone-200 shadow-sm">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-medium text-stone-900">Event Planning Progress</span>
-                    <span className="text-sm font-medium text-stone-700">{planningProgress}%</span>
-                  </div>
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex-1 h-3 bg-white rounded-full overflow-hidden shadow-inner">
-                      <div
-                        className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
-                        style={{ width: `${Math.min(planningProgress, 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-lg font-light text-stone-900">{planningProgress}%</span>
-                  </div>
-                  <div className="text-sm text-stone-700 mb-4">
-                    {getPlanningCompletion(selectedEvent.planningChecklist)} planning tasks
+                <div className="mb-8 space-y-6">
+                  <div className="bg-white rounded-lg border border-stone-200 shadow-sm p-6">
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Planning Notes</label>
+                    <textarea
+                      value={selectedEvent.planningNotes || ''}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'planningNotes', e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                      placeholder="General info, reminders, or planning thoughts..."
+                    />
                   </div>
 
-                  <div className="space-y-3">
-                    {planningChecklist.map(item => {
-                      const entry = (selectedEvent.planningChecklist || {})[item.id] || { done: false, note: '' };
-                      return (
-                        <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-md bg-white p-3 border border-stone-200">
-                          <label className="flex items-center gap-3">
+                  <div className="p-6 bg-gradient-to-br from-stone-50 to-stone-100 rounded-lg border border-stone-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-sm font-medium text-stone-900">Event Planning Progress</span>
+                      <span className="text-sm font-medium text-stone-700">{planningProgress}%</span>
+                    </div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="flex-1 h-3 bg-white rounded-full overflow-hidden shadow-inner">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
+                          style={{ width: `${Math.min(planningProgress, 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-lg font-light text-stone-900">{planningProgress}%</span>
+                    </div>
+                    <div className="text-sm text-stone-700 mb-4">
+                      {getPlanningCompletion(selectedEvent.planningChecklist)} planning tasks
+                    </div>
+
+                    <div className="space-y-3">
+                      {planningChecklist.map(item => {
+                        const entry = (selectedEvent.planningChecklist || {})[item.id] || { done: false, note: '' };
+                        return (
+                          <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-md bg-white p-3 border border-stone-200">
+                            <label className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={entry.done || false}
+                                onChange={() => togglePlanningItem(selectedEvent.id, item.id)}
+                                className="w-5 h-5 text-amber-600 rounded focus:ring-amber-400"
+                              />
+                              <span className={`text-sm ${entry.done ? 'line-through text-gray-400' : 'text-stone-800'}`}>
+                                {item.label}
+                              </span>
+                            </label>
                             <input
-                              type="checkbox"
-                              checked={entry.done || false}
-                              onChange={() => togglePlanningItem(selectedEvent.id, item.id)}
-                              className="w-5 h-5 text-amber-600 rounded focus:ring-amber-400"
+                              type="text"
+                              value={entry.note || ''}
+                              onChange={(e) => updatePlanningNote(selectedEvent.id, item.id, e.target.value)}
+                              className="flex-1 px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
+                              placeholder="Notes"
                             />
-                            <span className={`text-sm ${entry.done ? 'line-through text-gray-400' : 'text-stone-800'}`}>
-                              {item.label}
-                            </span>
-                          </label>
-                          <input
-                            type="text"
-                            value={entry.note || ''}
-                            onChange={(e) => updatePlanningNote(selectedEvent.id, item.id, e.target.value)}
-                            className="flex-1 px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
-                            placeholder="Notes"
-                          />
-                        </div>
-                      );
-                    })}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
