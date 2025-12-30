@@ -183,7 +183,7 @@ const EventManagementApp = () => {
             onClick={() => setSelectedEvent(null)}
             className="mb-6 text-amber-600 hover:text-amber-700 font-medium"
           >
-            <- Back to Dashboard
+            &larr; Back to Dashboard
           </button>
 
           <div className="bg-white rounded-lg shadow-lg border border-rose-200 overflow-hidden">
@@ -551,5 +551,6 @@ const EventManagementApp = () => {
 };
 
 export default EventManagementApp;
+
 
 
