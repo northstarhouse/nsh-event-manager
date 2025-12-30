@@ -310,6 +310,15 @@ const EventManagementApp = () => {
     return `${displayHours}:${minutes}${period}`;
   };
 
+  const formatDateDisplay = (value) => {
+    if (!value) return '';
+    const normalized = normalizeDateForInput(value);
+    if (!normalized) return value;
+    const [year, month, day] = normalized.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+    return localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -1023,11 +1032,11 @@ const EventManagementApp = () => {
                     <div className="flex items-center justify-between text-sm text-stone-700 mb-3">
                       <div className="flex items-center gap-2">
                         <Calendar size={14} />
-                        <span>
-                          {event.isTBD
-                            ? 'TBD'
-                            : `${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}${event.time ? ` · ${formatTimeDisplay(event.time)}` : ''}`}
-                        </span>
+                      <span>
+                        {event.isTBD
+                          ? 'TBD'
+                          : `${formatDateDisplay(event.date)}${event.time ? ` · ${formatTimeDisplay(event.time)}` : ''}`}
+                      </span>
                       </div>
                       {daysUntil !== null && !isPastEvent && (
                         <span className="text-xs text-stone-500">
@@ -1098,6 +1107,7 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
 
 
 
