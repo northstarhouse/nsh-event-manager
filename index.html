@@ -243,7 +243,7 @@ const EventManagementApp = () => {
             className="mb-6 text-amber-700 hover:text-amber-800 font-medium"
           >
             &larr; Back to Dashboard
-          </button>
+          </a>
 
           <div className="bg-white rounded-lg shadow-lg border border-stone-200 overflow-hidden">
             {selectedEvent.flyerImage && (
@@ -302,19 +302,19 @@ const EventManagementApp = () => {
                           className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           High-Impact
-                        </button>
+                        </a>
                         <button
                           onClick={() => setShowSuggestions(showSuggestions === 'medium' ? null : 'medium')}
                           className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           Medium-Impact
-                        </button>
+                        </a>
                         <button
                           onClick={() => setShowSuggestions(showSuggestions === 'optional' ? null : 'optional')}
                           className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
                         >
                           Optional Boost
-                        </button>
+                        </a>
                       </div>
                       {showSuggestions && (
                         <ul className="mt-4 space-y-2">
@@ -421,7 +421,7 @@ const EventManagementApp = () => {
           >
             <Plus size={20} />
             New Event
-          </button>
+          </a>
         </div>
 
         {showNewEventForm && (
@@ -509,13 +509,13 @@ const EventManagementApp = () => {
                     className="flex-1 px-6 py-3 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-md"
                   >
                     Create Event
-                  </button>
+                  </a>
                   <button
                     onClick={() => setShowNewEventForm(false)}
                     className="px-6 py-3 border border-stone-300 text-stone-800 rounded-md hover:bg-stone-50 transition-colors"
                   >
                     Cancel
-                  </button>
+                  </a>
                 </div>
               </div>
             </div>
@@ -600,9 +600,8 @@ const EventManagementApp = () => {
           <p className="text-sm text-stone-700 mb-4">
             All event data automatically syncs to Google Sheets for backup, historical tracking, and benchmarking future events.
           </p>
-          <button className="text-sm text-amber-700 hover:text-amber-800 font-medium transition-colors">
-            Connect Google Sheets ->'
-          </button>
+          <a href="https://docs.google.com/spreadsheets/d/1dLNdvhcW1_36brUdahk_eh73qx127GYM8djHMJbyazg/edit?gid=1826715872#gid=1826715872" target="_blank" rel="noopener noreferrer" className="text-sm text-amber-700 hover:text-amber-800 font-medium transition-colors">
+            Connect Google Sheets -></a>
         </div>
       </div>
     </div>
@@ -619,6 +618,9 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
+
+
 
 
 
