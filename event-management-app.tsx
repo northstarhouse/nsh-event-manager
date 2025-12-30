@@ -151,6 +151,15 @@ const EventManagementApp = () => {
     return `${completed}/${marketingChecklist.length}`;
   };
 
+  const getNudgeMessage = (event, progress, daysUntil) => {
+    if (daysUntil === null || daysUntil < 0) return null;
+    if (!event.targetAttendance) return 'Set a target attendance to get a tailored nudge.';
+    if (progress >= 90) return 'Keep momentum: share a reminder and highlight what is new.';
+    if (daysUntil <= 14) return 'Reshare the flyer and post a two-week reminder.';
+    if (daysUntil <= 30) return 'Post a reminder and reshare the flyer.';
+    return 'Schedule a reminder post and confirm your promo plan.';
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -762,7 +771,10 @@ const EventManagementApp = () => {
                 parseInt(event.targetAttendance) || 0
               );
               const statusColor = getStatusColor(progress);
+              const statusLabel = getStatusLabel(progress);
+              const statusText = statusLabel === 'On track' ? statusLabel : `${statusLabel} pace`;
               const isPastEvent = daysUntil !== null && daysUntil < 0;
+              const nudge = getNudgeMessage(event, progress, daysUntil);
 
               return (
                 <div
@@ -798,7 +810,20 @@ const EventManagementApp = () => {
                             style={{ width: `${Math.min(progress, 100)}%` }}
                           />
                         </div>
+                        <div className="text-xs text-stone-600">
+                          Status: <span className="font-medium text-stone-800">{statusText}</span>
+                        </div>
+                        <div className="text-xs text-stone-600 mt-1">
+                          Goal: {event.targetAttendance} · Current: {event.currentRSVPs || 0}
+                        </div>
                       </>
+                    )}
+
+                    {!isPastEvent && nudge && (
+                      <div className="mt-3 rounded-md bg-stone-50 border border-stone-200 p-3 text-xs text-stone-700">
+                        <div className="font-medium text-stone-800">Today's nudge</div>
+                        <div className="mt-1">{nudge}</div>
+                      </div>
                     )}
 
                     <div className="flex items-center justify-between text-xs text-stone-600">
