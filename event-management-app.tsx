@@ -6,7 +6,7 @@ const EventManagementApp = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showNewEventForm, setShowNewEventForm] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(null);
-  const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzLySFGPoJCITa2JwIoYJHH4f0PShuc2lQGbOu2tfkXbwAKC7Hr1BxAkb4kTA-iqQBn/exec';
+  const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzcuMhZ1h15zP7IgYhyCBChgkx_mbe23G6756V2_lHNT1grfgKR-AuZxbHt3t806h8-/exec';
   const STORAGE_KEY = 'nsh-events-cache-v1';
 
   const marketingChecklist = [
@@ -788,6 +788,7 @@ const EventManagementApp = () => {
 };
 
 export default EventManagementApp;
+
 
 
 
