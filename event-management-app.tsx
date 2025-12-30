@@ -990,6 +990,9 @@ const EventManagementApp = () => {
                             style={{ width: `${Math.min(progress, 100)}%` }}
                           />
                         </div>
+                        <div className="text-[11px] text-stone-500">
+                          {getChecklistCompletion(event.checklist)} tasks
+                        </div>
                         <div className="flex items-center justify-between">
                           <span>Event planning progress</span>
                           <span className="font-medium text-stone-800">{planningProgress}%</span>
@@ -999,6 +1002,9 @@ const EventManagementApp = () => {
                             className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 transition-all duration-500"
                             style={{ width: `${Math.min(planningProgress, 100)}%` }}
                           />
+                        </div>
+                        <div className="text-[11px] text-stone-500">
+                          {getPlanningCompletion(event.planningChecklist)} tasks
                         </div>
                       </div>
                     )}
