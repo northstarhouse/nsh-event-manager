@@ -82,17 +82,41 @@ const EventManagementApp = () => {
       const data = await response.json();
       const loadedEvents = Array.isArray(data.events) ? data.events : [];
       const storedFlyers = JSON.parse(localStorage.getItem(FLYER_KEY) || '{}');
-      const normalizedEvents = loadedEvents.map(event => ({
-        ...event,
-        date: normalizeDateForInput(event.date),
-        time: normalizeTimeForInput(event.time),
-        checklist: typeof event.checklist === 'string' ? JSON.parse(event.checklist || '{}') : (event.checklist || {}),
-        planningChecklist: typeof event.planningChecklist === 'string'
+      const cached = localStorage.getItem(STORAGE_KEY);
+      const cachedEvents = cached ? JSON.parse(cached) : [];
+      const cachedMap = Array.isArray(cachedEvents)
+        ? cachedEvents.reduce((acc, event) => {
+            if (event && event.id) acc[event.id] = event;
+            return acc;
+          }, {})
+        : {};
+      const normalizedEvents = loadedEvents.map(event => {
+        const cachedEvent = cachedMap[event.id];
+        const parsedChecklist = typeof event.checklist === 'string'
+          ? JSON.parse(event.checklist || '{}')
+          : (event.checklist || {});
+        const parsedPlanning = typeof event.planningChecklist === 'string'
           ? JSON.parse(event.planningChecklist || '{}')
-          : (event.planningChecklist || {}),
-        planningNotes: event.planningNotes || '',
-        flyerImage: storedFlyers[event.id] || null
-      }));
+          : (event.planningChecklist || {});
+        const cachedPlanning = cachedEvent && cachedEvent.planningChecklist ? cachedEvent.planningChecklist : null;
+        const planningChecklist = Object.keys(parsedPlanning || {}).length === 0 && cachedPlanning
+          ? cachedPlanning
+          : parsedPlanning;
+        const planningNotes = event.planningNotes || (cachedEvent ? cachedEvent.planningNotes || '' : '');
+        const mergedEvent = {
+          ...event,
+          date: normalizeDateForInput(event.date),
+          time: normalizeTimeForInput(event.time),
+          checklist: parsedChecklist,
+          planningChecklist,
+          planningNotes,
+          flyerImage: storedFlyers[event.id] || null
+        };
+        if (cachedPlanning && Object.keys(parsedPlanning || {}).length === 0) {
+          saveEvent(mergedEvent);
+        }
+        return mergedEvent;
+      });
       setEvents(normalizedEvents);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
     } catch (error) {
