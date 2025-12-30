@@ -6,7 +6,7 @@ const EventManagementApp = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showNewEventForm, setShowNewEventForm] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(null);
-  const SHEETS_API_URL = 'PASTE_APPS_SCRIPT_WEB_APP_URL_HERE';
+  const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzLySFGPoJCITa2JwIoYJHH4f0PShuc2lQGbOu2tfkXbwAKC7Hr1BxAkb4kTA-iqQBn/exec';
 
   const marketingChecklist = [
     { id: 'press-release', label: 'Create Press Release' },
@@ -51,7 +51,7 @@ const EventManagementApp = () => {
   });
 
   const loadEvents = async () => {
-    if (!SHEETS_API_URL || SHEETS_API_URL.includes('PASTE_APPS_SCRIPT_WEB_APP_URL_HERE')) return;
+    if (!SHEETS_API_URL || SHEETS_API_URL.includes('https://script.google.com/macros/s/AKfycbzLySFGPoJCITa2JwIoYJHH4f0PShuc2lQGbOu2tfkXbwAKC7Hr1BxAkb4kTA-iqQBn/exec')) return;
     try {
       const response = await fetch(`${SHEETS_API_URL}?action=list`);
       if (!response.ok) {
@@ -70,7 +70,7 @@ const EventManagementApp = () => {
   };
 
   const saveEvent = async (event) => {
-    if (!SHEETS_API_URL || SHEETS_API_URL.includes('PASTE_APPS_SCRIPT_WEB_APP_URL_HERE')) return;
+    if (!SHEETS_API_URL || SHEETS_API_URL.includes('https://script.google.com/macros/s/AKfycbzLySFGPoJCITa2JwIoYJHH4f0PShuc2lQGbOu2tfkXbwAKC7Hr1BxAkb4kTA-iqQBn/exec')) return;
     try {
       await fetch(SHEETS_API_URL, {
         method: 'POST',
@@ -767,6 +767,7 @@ const EventManagementApp = () => {
 };
 
 export default EventManagementApp;
+
 
 
 
