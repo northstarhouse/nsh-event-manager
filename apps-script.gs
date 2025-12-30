@@ -143,6 +143,14 @@ function eventToRow(headers, event) {
   return row;
 }
 
+function buildResponse(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
 function doGet(e) {
   const sheet = getSheet();
   const headers = ensureHeaders(sheet);
@@ -152,19 +160,22 @@ function doGet(e) {
     const lastRow = sheet.getLastRow();
     const rows = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
     const events = rows.map((row) => rowToEvent(headers, row));
-    return ContentService.createTextOutput(JSON.stringify({ events: events }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return buildResponse({ events: events });
   }
 
-  return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return buildResponse({ status: 'ok' });
 }
 
 function doPost(e) {
   const sheet = getSheet();
   const headers = ensureHeaders(sheet);
   const payload = e && e.postData ? e.postData.contents : '';
-  const data = payload ? JSON.parse(payload) : {};
+  let data = {};
+  try {
+    data = payload ? JSON.parse(payload) : {};
+  } catch (error) {
+    return buildResponse({ status: 'error', message: 'Invalid JSON payload' });
+  }
   const event = data.event || {};
 
   if (!event.id) {
@@ -192,6 +203,5 @@ function doPost(e) {
     sheet.appendRow(rowValues);
   }
 
-  return ContentService.createTextOutput(JSON.stringify({ status: 'saved', id: event.id }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return buildResponse({ status: 'saved', id: event.id });
 }

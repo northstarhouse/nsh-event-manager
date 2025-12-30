@@ -66,6 +66,7 @@ const EventManagementApp = () => {
   const [showNewEventForm, setShowNewEventForm] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(null);
   const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzLySFGPoJCITa2JwIoYJHH4f0PShuc2lQGbOu2tfkXbwAKC7Hr1BxAkb4kTA-iqQBn/exec';
+  const STORAGE_KEY = 'nsh-events-cache-v1';
 
   const marketingChecklist = [
     { id: 'press-release', label: 'Create Press Release' },
@@ -110,7 +111,7 @@ const EventManagementApp = () => {
   });
 
   const loadEvents = async () => {
-    if (!SHEETS_API_URL || SHEETS_API_URL.includes('https://script.google.com/macros/s/AKfycbzLySFGPoJCITa2JwIoYJHH4f0PShuc2lQGbOu2tfkXbwAKC7Hr1BxAkb4kTA-iqQBn/exec')) return;
+    if (!SHEETS_API_URL) return;
     try {
       const response = await fetch(`${SHEETS_API_URL}?action=list`);
       if (!response.ok) {
@@ -123,13 +124,29 @@ const EventManagementApp = () => {
         checklist: typeof event.checklist === 'string' ? JSON.parse(event.checklist || '{}') : (event.checklist || {})
       }));
       setEvents(normalizedEvents);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
     } catch (error) {
       console.error('Failed to load events from Sheets', error);
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        try {
+          const cachedEvents = JSON.parse(cached);
+          if (Array.isArray(cachedEvents)) {
+            setEvents(cachedEvents);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse cached events', parseError);
+        }
+      }
     }
   };
 
+  const persistEvents = (nextEvents) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextEvents));
+  };
+
   const saveEvent = async (event) => {
-    if (!SHEETS_API_URL || SHEETS_API_URL.includes('https://script.google.com/macros/s/AKfycbzLySFGPoJCITa2JwIoYJHH4f0PShuc2lQGbOu2tfkXbwAKC7Hr1BxAkb4kTA-iqQBn/exec')) return;
+    if (!SHEETS_API_URL) return;
     try {
       await fetch(SHEETS_API_URL, {
         method: 'POST',
@@ -193,7 +210,9 @@ const EventManagementApp = () => {
       id: Date.now(),
       createdAt: new Date().toISOString()
     };
-    setEvents([...events, event]);
+    const nextEvents = [...events, event];
+    setEvents(nextEvents);
+    persistEvents(nextEvents);
     saveEvent(event);
     setShowNewEventForm(false);
     setNewEvent({
@@ -233,6 +252,7 @@ const EventManagementApp = () => {
       return event;
     });
     setEvents(nextEvents);
+    persistEvents(nextEvents);
     if (selectedEvent && selectedEvent.id === eventId && updatedEvent) {
       setSelectedEvent(updatedEvent);
     }
@@ -251,6 +271,7 @@ const EventManagementApp = () => {
       return event;
     });
     setEvents(nextEvents);
+    persistEvents(nextEvents);
     if (selectedEvent && selectedEvent.id === eventId && updatedEvent) {
       setSelectedEvent(updatedEvent);
     }
