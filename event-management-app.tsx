@@ -64,6 +64,7 @@ const EventManagementApp = () => {
       const storedFlyers = JSON.parse(localStorage.getItem(FLYER_KEY) || '{}');
       const normalizedEvents = loadedEvents.map(event => ({
         ...event,
+        date: normalizeDateForInput(event.date),
         checklist: typeof event.checklist === 'string' ? JSON.parse(event.checklist || '{}') : (event.checklist || {}),
         flyerImage: storedFlyers[event.id] || null
       }));
@@ -153,6 +154,12 @@ const EventManagementApp = () => {
     return Math.round((current / target) * 100);
   };
 
+  const getChecklistProgress = (checklist) => {
+    const completed = Object.values(checklist || {}).filter(Boolean).length;
+    if (!marketingChecklist.length) return 0;
+    return Math.round((completed / marketingChecklist.length) * 100);
+  };
+
   const getStatusColor = (percentage) => {
     if (percentage >= 90) return 'text-emerald-600';
     if (percentage >= 70) return 'text-stone-600';
@@ -168,6 +175,14 @@ const EventManagementApp = () => {
   const getChecklistCompletion = (checklist) => {
     const completed = Object.values(checklist).filter(v => v).length;
     return `${completed}/${marketingChecklist.length}`;
+  };
+
+  const normalizeDateForInput = (value) => {
+    if (!value) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toISOString().slice(0, 10);
   };
 
   const getNudgeMessage = (event, progress, daysUntil) => {
@@ -295,10 +310,7 @@ const EventManagementApp = () => {
 
   if (selectedEvent) {
     const daysUntil = calculateDaysUntil(selectedEvent.date);
-    const progress = getProgressPercentage(
-      parseInt(selectedEvent.currentRSVPs) || 0,
-      parseInt(selectedEvent.targetAttendance) || 0
-    );
+    const progress = getChecklistProgress(selectedEvent.checklist);
     const statusColor = getStatusColor(progress);
     const statusLabel = getStatusLabel(progress);
     const isPastEvent = daysUntil !== null && daysUntil < 0;
@@ -362,7 +374,7 @@ const EventManagementApp = () => {
               {!isPastEvent && selectedEvent.targetAttendance && (
                 <div className="mb-8 p-6 bg-gradient-to-br from-stone-50 to-stone-100 rounded-lg border border-stone-200 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-medium text-stone-900">Attendance Progress</span>
+                    <span className="text-sm font-medium text-stone-900">Marketing Progress</span>
                     <span className={`text-sm font-medium ${statusColor}`}>{statusLabel}</span>
                   </div>
                   <div className="flex items-center gap-4 mb-2">
@@ -381,7 +393,7 @@ const EventManagementApp = () => {
                   {progress < 90 && daysUntil <= 30 && (
                     <div className="mt-4 pt-4 border-t border-stone-200">
                       <p className="text-sm text-stone-800 mb-3">
-                        You're {daysUntil > 14 ? `${daysUntil} days out` : daysUntil > 7 ? 'two weeks out' : 'one week out'} and currently at {selectedEvent.currentRSVPs || 0} of {selectedEvent.targetAttendance} attendees ({progress}%). Events with similar goals usually see stronger results with additional promotion.
+                        You're {daysUntil > 14 ? `${daysUntil} days out` : daysUntil > 7 ? 'two weeks out' : 'one week out'} and have completed {getChecklistCompletion(selectedEvent.checklist)} marketing tasks ({progress}%). Attendance is {selectedEvent.currentRSVPs || 0} of {selectedEvent.targetAttendance || 0}.
                       </p>
                       <p className="text-sm font-medium text-stone-900 mb-3">What level of action feels right?</p>
                       <div className="flex flex-col sm:flex-row gap-3">
@@ -788,10 +800,7 @@ const EventManagementApp = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {events.map(event => {
               const daysUntil = calculateDaysUntil(event.date);
-              const progress = getProgressPercentage(
-                parseInt(event.currentRSVPs) || 0,
-                parseInt(event.targetAttendance) || 0
-              );
+              const progress = getChecklistProgress(event.checklist);
               const statusColor = getStatusColor(progress);
               const statusLabel = getStatusLabel(progress);
               const statusText = statusLabel === 'On track' ? statusLabel : `${statusLabel} pace`;
