@@ -158,6 +158,23 @@ const EventManagementApp = () => {
     }
   };
 
+  const deleteEvent = async (eventId) => {
+    const nextEvents = events.filter(event => event.id !== eventId);
+    setEvents(nextEvents);
+    persistEvents(nextEvents);
+    setSelectedEvent(null);
+    if (!SHEETS_API_URL) return;
+    try {
+      await fetch(SHEETS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'delete', id: eventId })
+      });
+    } catch (error) {
+      console.error('Failed to delete event from Sheets', error);
+    }
+  };
+
   useEffect(() => {
     loadEvents();
   }, []);
@@ -335,20 +352,40 @@ const EventManagementApp = () => {
               </div>
             )}
 
-            <div className="p-8">
-              <h1 className="text-3xl font-light text-stone-900 mb-2">{selectedEvent.name}</h1>
-              <div className="flex items-center gap-4 text-stone-700 mb-6">
-                <div className="flex items-center gap-2">
-                  <Calendar size={18} />
-                  <span>{selectedEvent.isTBD ? 'TBD' : new Date(selectedEvent.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                </div>
-                {daysUntil !== null && !isPastEvent && (
-                  <div className="flex items-center gap-2">
-                    <Clock size={18} />
-                    <span>{daysUntil} days away</span>
+              <div className="p-8">
+                <div className="mb-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-2">Event Name</label>
+                    <input
+                      type="text"
+                      value={selectedEvent.name}
+                      onChange={(e) => updateEventField(selectedEvent.id, 'name', e.target.value)}
+                      className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-2xl font-light text-stone-900"
+                      placeholder="Event name"
+                    />
                   </div>
-                )}
-              </div>
+                  <div className="flex items-center gap-4 text-stone-700">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={18} />
+                      {selectedEvent.isTBD ? (
+                        <span>TBD</span>
+                      ) : (
+                        <input
+                          type="date"
+                          value={selectedEvent.date}
+                          onChange={(e) => updateEventField(selectedEvent.id, 'date', e.target.value)}
+                          className="px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
+                        />
+                      )}
+                    </div>
+                    {daysUntil !== null && !isPastEvent && (
+                      <div className="flex items-center gap-2">
+                        <Clock size={18} />
+                        <span>{daysUntil} days away</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
               {!isPastEvent && selectedEvent.targetAttendance && (
                 <div className="mb-8 p-6 bg-gradient-to-br from-stone-50 to-stone-100 rounded-lg border border-stone-200 shadow-sm">
@@ -560,6 +597,15 @@ const EventManagementApp = () => {
                     />
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-8 flex justify-end">
+                <button
+                  onClick={() => deleteEvent(selectedEvent.id)}
+                  className="px-4 py-2 border border-stone-300 text-stone-700 rounded-md hover:bg-stone-100 transition-colors"
+                >
+                  Delete Event
+                </button>
               </div>
             </div>
           </div>
@@ -832,15 +878,6 @@ const EventManagementApp = () => {
             })}
           </div>
         )}
-
-        <div className="mt-12 p-6 bg-gradient-to-br from-white to-stone-50 rounded-lg border border-stone-200 shadow-sm">
-          <h3 className="text-lg font-medium text-stone-900 mb-2">Google Sheets Integration</h3>
-          <p className="text-sm text-stone-700 mb-4">
-            All event data automatically syncs to Google Sheets for backup, historical tracking, and benchmarking future events.
-          </p>
-          <a href="https://docs.google.com/spreadsheets/d/1dLNdvhcW1_36brUdahk_eh73qx127GYM8djHMJbyazg/edit?gid=1826715872#gid=1826715872" target="_blank" rel="noopener noreferrer" className="text-sm text-amber-700 hover:text-amber-800 font-medium transition-colors">
-            Connect Google Sheets -></a>
-        </div>
       </div>
     </div>
   );
@@ -856,6 +893,7 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
 
 
 

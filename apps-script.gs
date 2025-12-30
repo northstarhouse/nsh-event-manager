@@ -176,6 +176,20 @@ function doPost(e) {
   } catch (error) {
     return buildResponse({ status: 'error', message: 'Invalid JSON payload' });
   }
+  if (data.action === 'delete' && data.id) {
+    const idIndex = headers.indexOf('ID') + 1;
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1 && idIndex > 0) {
+      const idValues = sheet.getRange(2, idIndex, lastRow - 1, 1).getValues();
+      for (let i = 0; i < idValues.length; i += 1) {
+        if (String(idValues[i][0]) === String(data.id)) {
+          sheet.deleteRow(i + 2);
+          return buildResponse({ status: 'deleted', id: data.id });
+        }
+      }
+    }
+    return buildResponse({ status: 'not_found', id: data.id });
+  }
   const event = data.event || {};
 
   if (!event.id) {
