@@ -332,7 +332,7 @@ const EventManagementApp = () => {
     const isPastEvent = daysUntil !== null && daysUntil < 0;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-stone-100 to-amber-50 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-stone-100 to-amber-50 p-4 sm:p-6">
         <div className="max-w-4xl mx-auto">
           <button
             onClick={() => setSelectedEvent(null)}
@@ -364,7 +364,7 @@ const EventManagementApp = () => {
                       placeholder="Event name"
                     />
                   </div>
-                  <div className="flex items-center gap-4 text-stone-700">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-stone-700">
                     <div className="flex items-center gap-2">
                       <Calendar size={18} />
                       {selectedEvent.isTBD ? (
@@ -412,7 +412,7 @@ const EventManagementApp = () => {
                         You're {daysUntil > 14 ? `${daysUntil} days out` : daysUntil > 7 ? 'two weeks out' : 'one week out'} and currently at {selectedEvent.currentRSVPs || 0} of {selectedEvent.targetAttendance} attendees ({progress}%). Events with similar goals usually see stronger results with additional promotion.
                       </p>
                       <p className="text-sm font-medium text-stone-900 mb-3">What level of action feels right?</p>
-                      <div className="flex gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
                         <button
                           onClick={() => setShowSuggestions(showSuggestions === 'high' ? null : 'high')}
                           className="px-4 py-2 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-sm text-sm font-medium"
@@ -454,7 +454,7 @@ const EventManagementApp = () => {
                 </div>
                 <div className="space-y-2">
                   {marketingChecklist.map(item => (
-                    <label key={item.id} className="flex items-center gap-3 p-3 hover:bg-stone-50 rounded-md cursor-pointer transition-colors">
+                    <label key={item.id} className="flex items-start sm:items-center gap-3 p-3 hover:bg-stone-50 rounded-md cursor-pointer transition-colors">
                       <input
                         type="checkbox"
                         checked={selectedEvent.checklist[item.id] || false}
@@ -615,16 +615,16 @@ const EventManagementApp = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-stone-100 to-amber-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-stone-100 to-amber-50 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
           <div>
             <h1 className="text-4xl font-light text-stone-900 mb-2">North Star House</h1>
             <p className="text-stone-700">Event Management</p>
           </div>
           <button
             onClick={() => setShowNewEventForm(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-md"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-[#886c44] text-white rounded-md hover:bg-[#755a38] transition-all shadow-md w-full md:w-auto"
           >
             <Plus size={20} />
             New Event
@@ -632,8 +632,8 @@ const EventManagementApp = () => {
         </div>
 
         {showNewEventForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-6 z-50">
-            <div className="bg-gradient-to-br from-white to-stone-50 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 border border-stone-200">
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 sm:p-6 z-50">
+            <div className="bg-gradient-to-br from-white to-stone-50 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 border border-stone-200">
               <h2 className="text-2xl font-light text-stone-900 mb-6">Create New Event</h2>
               
               <div className="space-y-6">
@@ -786,7 +786,7 @@ const EventManagementApp = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
                   <button
                     onClick={handleCreateEvent}
                     disabled={!newEvent.name}
@@ -813,7 +813,7 @@ const EventManagementApp = () => {
             <p className="text-sm text-stone-500">Create your first event to get started</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {events.map(event => {
               const daysUntil = calculateDaysUntil(event.date);
               const progress = getProgressPercentage(
@@ -893,6 +893,7 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
 
 
 
