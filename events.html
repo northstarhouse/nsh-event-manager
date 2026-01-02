@@ -476,6 +476,13 @@ const EventManagementApp = () => {
     return localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const currentMonthIndex = new Date().getMonth();
+  const currentNewsletter = newsletterData[currentMonthIndex];
+  const previewMonthIndex = currentNewsletter && currentNewsletter.published
+    ? (currentMonthIndex + 1) % 12
+    : currentMonthIndex;
+  const previewEntry = newsletterData[previewMonthIndex] || normalizeNewsletterEntry(null, previewMonthIndex);
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -625,12 +632,6 @@ const EventManagementApp = () => {
     const statusColor = getStatusColor(marketingProgress);
     const statusLabel = getStatusLabel(marketingProgress);
     const isPastEvent = daysUntil !== null && daysUntil < 0;
-    const currentMonthIndex = new Date().getMonth();
-    const currentNewsletter = newsletterData[currentMonthIndex];
-    const previewMonthIndex = currentNewsletter && currentNewsletter.published
-      ? (currentMonthIndex + 1) % 12
-      : currentMonthIndex;
-    const previewEntry = newsletterData[previewMonthIndex] || normalizeNewsletterEntry(null, previewMonthIndex);
     const handleTouchStart = (e) => {
       touchStartX.current = e.touches[0].clientX;
     };
@@ -1381,9 +1382,117 @@ const EventManagementApp = () => {
             })}
           </div>
         )}
+
+        <div className="mt-10 bg-white rounded-lg border border-stone-200 shadow-sm p-6">
+          <div className="flex items-start justify-between gap-4 mb-2">
+            <div>
+              <h2 className="text-lg font-medium text-stone-900">Newsletter Content</h2>
+              <p className="text-xs text-stone-500">
+                Current focus: {monthLabels[previewMonthIndex]}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="text-xs text-amber-700 font-medium"
+              onClick={() => setShowNewsletterModal(true)}
+            >
+              Open
+            </button>
+          </div>
+          <div className="text-sm text-stone-700">
+            {previewEntry.mainFeature ||
+              previewEntry.mainUpcomingEvent ||
+              previewEntry.eventRecaps ||
+              previewEntry.volunteerHours ||
+              previewEntry.donationNeeds ||
+              previewEntry.other ||
+              'Add the monthly overview and details.'}
+          </div>
+          <div className="mt-3 text-xs text-stone-500">
+            {currentNewsletter && currentNewsletter.published
+              ? `Published - previewing ${monthLabels[previewMonthIndex]}`
+              : `Draft - ${monthLabels[previewMonthIndex]}`}
+          </div>
+        </div>
       </div>
+
+      {showNewsletterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-stone-200">
+            <div className="p-6 border-b border-stone-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-light text-stone-900">Newsletter Content</h2>
+                <p className="text-xs text-stone-500">Edit month-by-month content for the newsletter.</p>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-stone-600 hover:text-stone-800"
+                onClick={() => setShowNewsletterModal(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="px-3 py-2 border border-stone-200 rounded-md text-sm text-stone-600 hover:bg-stone-50"
+                    onClick={() => setNewsletterMonth((newsletterMonth + 11) % 12)}
+                  >
+                    Prev
+                  </button>
+                  <div className="text-sm font-medium text-stone-900">
+                    {monthLabels[newsletterMonth]}
+                  </div>
+                  <button
+                    type="button"
+                    className="px-3 py-2 border border-stone-200 rounded-md text-sm text-stone-600 hover:bg-stone-50"
+                    onClick={() => setNewsletterMonth((newsletterMonth + 1) % 12)}
+                  >
+                    Next
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className={`px-3 py-2 rounded-md text-sm font-medium border inline-flex items-center gap-2 ${newsletterData[newsletterMonth]?.published ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : 'border-stone-200 text-stone-600 hover:bg-stone-50'}`}
+                  onClick={() => toggleNewsletterPublished(newsletterMonth)}
+                >
+                  {newsletterData[newsletterMonth]?.published ? (
+                    <>
+                      <CheckCircle2 size={16} />
+                      Published
+                    </>
+                  ) : (
+                    'Mark as Published'
+                  )}
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {newsletterFields.map(field => (
+                  <div key={field.id} className="flex flex-col sm:flex-row gap-3">
+                    <div className="text-sm font-medium text-stone-900 sm:w-48 pt-2">
+                      {field.label}
+                    </div>
+                    <textarea
+                      value={newsletterData[newsletterMonth]?.[field.id] || ''}
+                      onChange={(e) => updateNewsletterField(newsletterMonth, field.id, e.target.value)}
+                      rows={3}
+                      className="flex-1 px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
+                      placeholder={`Add ${field.label.toLowerCase()}...`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+};
 };
     try {
       const root = ReactDOM.createRoot(rootEl);
@@ -1395,6 +1504,7 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
 
 
 
