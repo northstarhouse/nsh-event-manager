@@ -93,6 +93,12 @@ const EventManagementApp = () => {
     acc[`${field.day} - ${field.prompt}`] = field.id;
     return acc;
   }, {});
+  const postingWeekMaps = postingSchedule.map(section =>
+    section.items.reduce((acc, item) => {
+      acc[`${item.day} - ${item.prompt}`] = item.id;
+      return acc;
+    }, {})
+  );
 
   const buildPostingEntriesText = (entries) => {
     const lines = [];
@@ -109,6 +115,36 @@ const EventManagementApp = () => {
       }
     });
     return lines.join('\n').trim();
+  };
+
+  const buildPostingWeekText = (section, entries) => {
+    const lines = section.items
+      .map(item => {
+        const value = (entries?.[item.id] || '').trim();
+        if (!value) return null;
+        return `${item.day} - ${item.prompt}: ${value}`;
+      })
+      .filter(Boolean);
+    return lines.join('\n').trim();
+  };
+
+  const parsePostingWeekText = (raw, weekIndex) => {
+    if (!raw) return {};
+    const lines = String(raw).split('\n');
+    const labelMap = postingWeekMaps[weekIndex] || {};
+    return lines.reduce((acc, line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return acc;
+      const separatorIndex = trimmed.indexOf(':');
+      if (separatorIndex === -1) return acc;
+      const label = trimmed.slice(0, separatorIndex).trim();
+      const value = trimmed.slice(separatorIndex + 1).trim();
+      const mappedId = labelMap[label];
+      if (mappedId) {
+        acc[mappedId] = value;
+      }
+      return acc;
+    }, {});
   };
 
   const parsePostingEntriesText = (raw) => {
@@ -288,14 +324,27 @@ const EventManagementApp = () => {
 
   const normalizePostingEntry = (entry, monthIndex) => {
     let parsedEntries = {};
-    if (entry && typeof entry.entries === 'string') {
-      try {
-        parsedEntries = JSON.parse(entry.entries || '{}');
-      } catch (error) {
-        parsedEntries = parsePostingEntriesText(entry.entries);
+    if (entry) {
+      [entry.week1, entry.week2, entry.week3, entry.week4].forEach((raw, index) => {
+        parsedEntries = { ...parsedEntries, ...parsePostingWeekText(raw, index) };
+      });
+      if (entry.entries) {
+        let legacyEntries = {};
+        if (typeof entry.entries === 'string') {
+          try {
+            legacyEntries = JSON.parse(entry.entries || '{}');
+          } catch (error) {
+            legacyEntries = parsePostingEntriesText(entry.entries);
+          }
+        } else {
+          legacyEntries = entry.entries;
+        }
+        Object.keys(legacyEntries || {}).forEach((key) => {
+          if (!parsedEntries[key]) {
+            parsedEntries[key] = legacyEntries[key];
+          }
+        });
       }
-    } else if (entry && entry.entries) {
-      parsedEntries = entry.entries;
     }
     const entries = postingFields.reduce((acc, field) => {
       acc[field.id] = parsedEntries[field.id] || '';
@@ -400,9 +449,15 @@ const EventManagementApp = () => {
 
   const savePostingEntry = async (monthIndex, entry) => {
     if (!SHEETS_API_URL) return;
+    const normalized = normalizePostingEntry(entry, monthIndex);
     const payload = {
-      ...normalizePostingEntry(entry, monthIndex),
-      entries: buildPostingEntriesText(entry.entries || {})
+      month: normalized.month,
+      completed: normalized.completed,
+      week1: buildPostingWeekText(postingSchedule[0], normalized.entries),
+      week2: buildPostingWeekText(postingSchedule[1], normalized.entries),
+      week3: buildPostingWeekText(postingSchedule[2], normalized.entries),
+      week4: buildPostingWeekText(postingSchedule[3], normalized.entries),
+      entries: buildPostingEntriesText(normalized.entries)
     };
     try {
       await fetch(SHEETS_API_URL, {

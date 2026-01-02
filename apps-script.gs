@@ -37,8 +37,11 @@ const NEWSLETTER_HEADERS = [
 ];
 const POSTING_HEADERS = [
   'Month',
-  'Completed',
-  'Entries'
+  'Week 1',
+  'Week 2',
+  'Week 3',
+  'Week 4',
+  'Completed'
 ];
 
 function getSheet() {
@@ -179,22 +182,40 @@ function rowToPosting(headers, row) {
   return {
     month: entry['Month'],
     completed: String(entry['Completed']).toLowerCase() === 'true',
+    week1: entry['Week 1'],
+    week2: entry['Week 2'],
+    week3: entry['Week 3'],
+    week4: entry['Week 4'],
     entries: entry['Entries']
   };
 }
 
 function postingToRow(headers, entry) {
   const row = new Array(headers.length).fill('');
+  const legacyEntries = entry.entries
+    || [entry.week1, entry.week2, entry.week3, entry.week4].filter(Boolean).join('\n\n');
   headers.forEach((header, index) => {
     switch (header) {
       case 'Month':
         row[index] = entry.month || '';
         break;
+      case 'Week 1':
+        row[index] = entry.week1 || '';
+        break;
+      case 'Week 2':
+        row[index] = entry.week2 || '';
+        break;
+      case 'Week 3':
+        row[index] = entry.week3 || '';
+        break;
+      case 'Week 4':
+        row[index] = entry.week4 || '';
+        break;
       case 'Completed':
         row[index] = entry.completed ? 'true' : 'false';
         break;
       case 'Entries':
-        row[index] = typeof entry.entries === 'string' ? entry.entries : JSON.stringify(entry.entries || {});
+        row[index] = typeof legacyEntries === 'string' ? legacyEntries : JSON.stringify(legacyEntries || {});
         break;
       default:
         row[index] = '';
