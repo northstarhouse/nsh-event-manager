@@ -1,5 +1,5 @@
 const SHEET_NAME = 'Event Tracking';
-const NEWSLETTER_SHEET_ID = '1XPU-El3JrtjUFl9tmxDqJNfAEoi1oNbbzYMVQUFOuHs';
+const NEWSLETTER_SHEET_ID = '1dLNdvhcW1_36brUdahk_eh73qx127GYM8djHMJbyazg';
 const NEWSLETTER_SHEET_NAME = 'Newsletter Content';
 const HEADERS = [
   'ID',
