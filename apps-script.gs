@@ -1,4 +1,6 @@
 const SHEET_NAME = 'Event Tracking';
+const NEWSLETTER_SHEET_ID = '1XPU-El3JrtjUFl9tmxDqJNfAEoi1oNbbzYMVQUFOuHs';
+const NEWSLETTER_SHEET_NAME = 'Newsletter Content';
 const HEADERS = [
   'ID',
   'Event',
@@ -21,6 +23,16 @@ const HEADERS = [
   'Post Event Attendance',
   'Post Event Notes'
 ];
+const NEWSLETTER_HEADERS = [
+  'Month',
+  'Main Feature',
+  'Main Upcoming Event',
+  'Event Recaps / Blogs',
+  'Volunteer Monthly Hours',
+  'Donation Needs',
+  'Other',
+  'Published'
+];
 
 function getSheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -29,6 +41,32 @@ function getSheet() {
     sheet = spreadsheet.insertSheet(SHEET_NAME);
   }
   return sheet;
+}
+
+function getNewsletterSheet() {
+  const spreadsheet = SpreadsheetApp.openById(NEWSLETTER_SHEET_ID);
+  let sheet = spreadsheet.getSheetByName(NEWSLETTER_SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.getSheets()[0] || spreadsheet.insertSheet(NEWSLETTER_SHEET_NAME);
+  }
+  return sheet;
+}
+
+function ensureNewsletterHeaders(sheet) {
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const existing = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  let headers = existing.filter(Boolean);
+  if (headers.length === 0) {
+    headers = NEWSLETTER_HEADERS.slice();
+  } else {
+    NEWSLETTER_HEADERS.forEach((header) => {
+      if (headers.indexOf(header) === -1) {
+        headers.push(header);
+      }
+    });
+  }
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  return headers;
 }
 
 function ensureHeaders(sheet) {
@@ -46,6 +84,58 @@ function ensureHeaders(sheet) {
   }
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   return headers;
+}
+
+function rowToNewsletter(headers, row) {
+  const entry = {};
+  headers.forEach((header, index) => {
+    entry[header] = row[index] !== undefined ? row[index] : '';
+  });
+  return {
+    month: entry['Month'],
+    mainFeature: entry['Main Feature'],
+    mainUpcomingEvent: entry['Main Upcoming Event'],
+    eventRecaps: entry['Event Recaps / Blogs'],
+    volunteerHours: entry['Volunteer Monthly Hours'],
+    donationNeeds: entry['Donation Needs'],
+    other: entry['Other'],
+    published: String(entry['Published']).toLowerCase() === 'true'
+  };
+}
+
+function newsletterToRow(headers, entry) {
+  const row = new Array(headers.length).fill('');
+  headers.forEach((header, index) => {
+    switch (header) {
+      case 'Month':
+        row[index] = entry.month || '';
+        break;
+      case 'Main Feature':
+        row[index] = entry.mainFeature || '';
+        break;
+      case 'Main Upcoming Event':
+        row[index] = entry.mainUpcomingEvent || '';
+        break;
+      case 'Event Recaps / Blogs':
+        row[index] = entry.eventRecaps || '';
+        break;
+      case 'Volunteer Monthly Hours':
+        row[index] = entry.volunteerHours || '';
+        break;
+      case 'Donation Needs':
+        row[index] = entry.donationNeeds || '';
+        break;
+      case 'Other':
+        row[index] = entry.other || '';
+        break;
+      case 'Published':
+        row[index] = entry.published ? 'true' : 'false';
+        break;
+      default:
+        row[index] = '';
+    }
+  });
+  return row;
 }
 
 function rowToEvent(headers, row) {
@@ -156,9 +246,19 @@ function buildResponse(payload) {
 }
 
 function doGet(e) {
+  const action = e && e.parameter ? e.parameter.action : '';
+
+  if (action === 'newsletter_list') {
+    const sheet = getNewsletterSheet();
+    const headers = ensureNewsletterHeaders(sheet);
+    const lastRow = sheet.getLastRow();
+    const rows = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
+    const entries = rows.map((row) => rowToNewsletter(headers, row));
+    return buildResponse({ entries: entries });
+  }
+
   const sheet = getSheet();
   const headers = ensureHeaders(sheet);
-  const action = e && e.parameter ? e.parameter.action : '';
 
   if (action === 'list') {
     const lastRow = sheet.getLastRow();
@@ -171,8 +271,6 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const sheet = getSheet();
-  const headers = ensureHeaders(sheet);
   const payload = e && e.postData ? e.postData.contents : '';
   let data = {};
   try {
@@ -180,6 +278,36 @@ function doPost(e) {
   } catch (error) {
     return buildResponse({ status: 'error', message: 'Invalid JSON payload' });
   }
+
+  if (data.action === 'newsletter_upsert' && data.entry) {
+    const sheet = getNewsletterSheet();
+    const headers = ensureNewsletterHeaders(sheet);
+    const entry = data.entry || {};
+    const monthValue = String(entry.month || '');
+    const monthIndex = headers.indexOf('Month') + 1;
+    const lastRow = sheet.getLastRow();
+    let targetRow = null;
+    if (lastRow > 1 && monthIndex > 0) {
+      const monthValues = sheet.getRange(2, monthIndex, lastRow - 1, 1).getValues();
+      for (let i = 0; i < monthValues.length; i += 1) {
+        if (String(monthValues[i][0]) === monthValue) {
+          targetRow = i + 2;
+          break;
+        }
+      }
+    }
+    const rowValues = newsletterToRow(headers, entry);
+    if (targetRow) {
+      sheet.getRange(targetRow, 1, 1, headers.length).setValues([rowValues]);
+    } else {
+      sheet.appendRow(rowValues);
+    }
+    return buildResponse({ status: 'saved', month: entry.month });
+  }
+
+  const sheet = getSheet();
+  const headers = ensureHeaders(sheet);
+
   if (data.action === 'delete' && data.id) {
     const idIndex = headers.indexOf('ID') + 1;
     const lastRow = sheet.getLastRow();
