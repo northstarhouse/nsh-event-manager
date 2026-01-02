@@ -14,11 +14,15 @@ const EventManagementApp = () => {
   const [postingData, setPostingData] = useState({});
   const [showPostingModal, setShowPostingModal] = useState(false);
   const [postingMonth, setPostingMonth] = useState(new Date().getMonth());
+  const [bookingsData, setBookingsData] = useState([]);
+  const [bookingsCount, setBookingsCount] = useState(0);
+  const [showBookingsModal, setShowBookingsModal] = useState(false);
   const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzcuMhZ1h15zP7IgYhyCBChgkx_mbe23G6756V2_lHNT1grfgKR-AuZxbHt3t806h8-/exec';
   const STORAGE_KEY = 'nsh-events-cache-v1';
   const FLYER_KEY = 'nsh-event-flyers-v1';
   const NEWSLETTER_STORAGE_KEY = 'nsh-newsletter-cache-v1';
   const POSTING_STORAGE_KEY = 'nsh-posting-schedule-v1';
+  const BOOKINGS_STORAGE_KEY = 'nsh-bookings-cache-v1';
 
   const monthLabels = [
     'January',
@@ -365,6 +369,10 @@ const EventManagementApp = () => {
     localStorage.setItem(POSTING_STORAGE_KEY, JSON.stringify(nextData));
   };
 
+  const persistBookings = (nextData) => {
+    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(nextData));
+  };
+
   const loadNewsletter = async () => {
     if (!SHEETS_API_URL) return;
     try {
@@ -433,6 +441,36 @@ const EventManagementApp = () => {
     }
   };
 
+  const loadBookings = async () => {
+    if (!SHEETS_API_URL) return;
+    try {
+      const response = await fetch(`${SHEETS_API_URL}?action=bookings_list`);
+      if (!response.ok) {
+        throw new Error(`Bookings load failed: ${response.status}`);
+      }
+      const data = await response.json();
+      const entries = Array.isArray(data.entries) ? data.entries : [];
+      const count = Number.isFinite(data.count) ? data.count : entries.length;
+      setBookingsData(entries);
+      setBookingsCount(count);
+      persistBookings(entries);
+    } catch (error) {
+      console.error('Failed to load bookings data', error);
+      const cached = localStorage.getItem(BOOKINGS_STORAGE_KEY);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            setBookingsData(parsed);
+            setBookingsCount(parsed.length);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse cached bookings data', parseError);
+        }
+      }
+    }
+  };
+
   const saveNewsletterEntry = async (monthIndex, entry) => {
     if (!SHEETS_API_URL) return;
     const payload = normalizeNewsletterEntry(entry, monthIndex);
@@ -467,6 +505,19 @@ const EventManagementApp = () => {
       });
     } catch (error) {
       console.error('Failed to save posting schedule', error);
+    }
+  };
+
+  const saveBookingEntry = async (entry) => {
+    if (!SHEETS_API_URL) return;
+    try {
+      await fetch(SHEETS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'bookings_update', entry: entry })
+      });
+    } catch (error) {
+      console.error('Failed to save booking update', error);
     }
   };
 
@@ -518,6 +569,26 @@ const EventManagementApp = () => {
       const nextData = { ...prev, [monthIndex]: nextEntry };
       persistPosting(nextData);
       savePostingEntry(monthIndex, nextEntry);
+      return nextData;
+    });
+  };
+
+  const updateBookingField = (rowIndex, field, value) => {
+    setBookingsData(prev => {
+      const nextData = prev.map(entry => {
+        if (entry.rowIndex !== rowIndex) return entry;
+        return { ...entry, [field]: value };
+      });
+      persistBookings(nextData);
+      const updated = nextData.find(entry => entry.rowIndex === rowIndex);
+      if (updated) {
+        saveBookingEntry({
+          rowIndex: updated.rowIndex,
+          photoPermission: Boolean(updated.photoPermission),
+          link: updated.link || '',
+          posted: Boolean(updated.posted)
+        });
+      }
       return nextData;
     });
   };
@@ -584,6 +655,7 @@ const EventManagementApp = () => {
     loadEvents();
     loadNewsletter();
     loadPosting();
+    loadBookings();
   }, []);
 
   const calculateDaysUntil = (dateString) => {
@@ -1658,6 +1730,27 @@ const EventManagementApp = () => {
               : `In progress - ${monthLabels[postingPreviewMonthIndex]}`}
           </div>
         </div>
+
+        <div className="mt-6 bg-white rounded-lg border border-stone-200 shadow-sm p-6">
+          <div className="flex items-start justify-between gap-4 mb-2">
+            <div>
+              <h2 className="text-lg font-medium text-stone-900">Events Booked</h2>
+              <p className="text-xs text-stone-500">
+                {bookingsCount} event{bookingsCount === 1 ? '' : 's'} booked
+              </p>
+            </div>
+            <button
+              type="button"
+              className="text-xs text-amber-700 font-medium"
+              onClick={() => setShowBookingsModal(true)}
+            >
+              Open
+            </button>
+          </div>
+          <div className="text-sm text-stone-700">
+            Review photo permissions, links, and socials status.
+          </div>
+        </div>
       </div>
 
       {showNewsletterModal && (
@@ -1810,6 +1903,89 @@ const EventManagementApp = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBookingsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto border border-stone-200">
+            <div className="p-6 border-b border-stone-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-light text-stone-900">Events Booked</h2>
+                <p className="text-xs text-stone-500">Manage photo permissions and social posting status.</p>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-stone-600 hover:text-stone-800"
+                onClick={() => setShowBookingsModal(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-6">
+              {bookingsData.length === 0 ? (
+                <div className="text-sm text-stone-600">No bookings found.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-[720px] w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-stone-500 border-b border-stone-200">
+                        <th className="py-2 pr-3 font-medium">Name</th>
+                        <th className="py-2 pr-3 font-medium">Type</th>
+                        <th className="py-2 pr-3 font-medium">Photo Permission</th>
+                        <th className="py-2 pr-3 font-medium">Link / Photographer</th>
+                        <th className="py-2 pr-3 font-medium">Posted to Socials</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-stone-800">
+                      {bookingsData.map(entry => (
+                        <tr key={entry.rowIndex} className="border-b border-stone-100">
+                          <td className="py-3 pr-3 align-top">
+                            {entry.name || '—'}
+                          </td>
+                          <td className="py-3 pr-3 align-top">
+                            {entry.type || '—'}
+                          </td>
+                          <td className="py-3 pr-3 align-top">
+                            <label className="inline-flex items-center gap-2 text-xs text-stone-600">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(entry.photoPermission)}
+                                onChange={(e) => updateBookingField(entry.rowIndex, 'photoPermission', e.target.checked)}
+                                className="h-4 w-4 rounded border-stone-300 text-amber-600 focus:ring-amber-400"
+                              />
+                              Permission granted
+                            </label>
+                          </td>
+                          <td className="py-3 pr-3 align-top">
+                            <input
+                              type="text"
+                              value={entry.link || ''}
+                              onChange={(e) => updateBookingField(entry.rowIndex, 'link', e.target.value)}
+                              placeholder="Add link or photographer"
+                              className="w-full px-3 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
+                            />
+                          </td>
+                          <td className="py-3 pr-3 align-top">
+                            <label className="inline-flex items-center gap-2 text-xs text-stone-600">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(entry.posted)}
+                                onChange={(e) => updateBookingField(entry.rowIndex, 'posted', e.target.checked)}
+                                className="h-4 w-4 rounded border-stone-300 text-amber-600 focus:ring-amber-400"
+                              />
+                              Posted
+                            </label>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -3,6 +3,8 @@ const NEWSLETTER_SHEET_ID = '1dLNdvhcW1_36brUdahk_eh73qx127GYM8djHMJbyazg';
 const NEWSLETTER_SHEET_NAME = 'Newsletter Content';
 const POSTING_SHEET_ID = '1dLNdvhcW1_36brUdahk_eh73qx127GYM8djHMJbyazg';
 const POSTING_SHEET_NAME = 'Monthly Posting Schedule';
+const BOOKINGS_SHEET_ID = '1kv2-3cMhzViMr1Fs-SGmiY3DJe05p3r7VIVk5LOj-_k';
+const BOOKINGS_SHEET_NAME = 'Bookings';
 const HEADERS = [
   'ID',
   'Event',
@@ -67,6 +69,15 @@ function getPostingSheet() {
   let sheet = spreadsheet.getSheetByName(POSTING_SHEET_NAME);
   if (!sheet) {
     sheet = spreadsheet.getSheets()[0] || spreadsheet.insertSheet(POSTING_SHEET_NAME);
+  }
+  return sheet;
+}
+
+function getBookingsSheet() {
+  const spreadsheet = SpreadsheetApp.openById(BOOKINGS_SHEET_ID);
+  let sheet = spreadsheet.getSheetByName(BOOKINGS_SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.getSheets()[0] || spreadsheet.insertSheet(BOOKINGS_SHEET_NAME);
   }
   return sheet;
 }
@@ -176,6 +187,22 @@ function rowToPosting(headers, row) {
     week3: entry['Week 3'],
     week4: entry['Week 4'],
     entries: entry['Entries']
+  };
+}
+
+function rowToBooking(rowIndex, row) {
+  const normalizeBoolean = (value) => {
+    if (value === true) return true;
+    if (value === false) return false;
+    return String(value).toLowerCase() === 'true';
+  };
+  return {
+    rowIndex: rowIndex,
+    name: row[0] || '',
+    type: row[1] || '',
+    photoPermission: normalizeBoolean(row[6]),
+    link: row[7] || '',
+    posted: normalizeBoolean(row[8])
   };
 }
 
@@ -341,6 +368,17 @@ function doGet(e) {
     return buildResponse({ entries: entries });
   }
 
+  if (action === 'bookings_list') {
+    const sheet = getBookingsSheet();
+    const lastRow = sheet.getLastRow();
+    const rowCount = Math.max(lastRow - 1, 0);
+    const rows = rowCount > 0 ? sheet.getRange(2, 1, rowCount, 9).getValues() : [];
+    const entries = rows
+      .map((row, index) => rowToBooking(index + 2, row))
+      .filter((entry) => String(entry.name).trim().length > 0);
+    return buildResponse({ count: entries.length, entries: entries });
+  }
+
   const sheet = getSheet();
   const headers = ensureHeaders(sheet);
 
@@ -413,6 +451,22 @@ function doPost(e) {
       sheet.appendRow(rowValues);
     }
     return buildResponse({ status: 'saved', month: entry.month });
+  }
+
+  if (data.action === 'bookings_update' && data.entry) {
+    const sheet = getBookingsSheet();
+    const entry = data.entry || {};
+    const rowIndex = Number(entry.rowIndex);
+    if (!rowIndex || rowIndex < 2) {
+      return buildResponse({ status: 'error', message: 'Invalid row index' });
+    }
+    const values = [[
+      entry.photoPermission ? true : false,
+      entry.link || '',
+      entry.posted ? true : false
+    ]];
+    sheet.getRange(rowIndex, 7, 1, 3).setValues(values);
+    return buildResponse({ status: 'saved', rowIndex: rowIndex });
   }
 
   const sheet = getSheet();
