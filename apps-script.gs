@@ -89,18 +89,7 @@ function ensureNewsletterHeaders(sheet) {
 }
 
 function ensurePostingHeaders(sheet) {
-  const lastCol = Math.max(sheet.getLastColumn(), 1);
-  const existing = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  let headers = existing.filter(Boolean);
-  if (headers.length === 0) {
-    headers = POSTING_HEADERS.slice();
-  } else {
-    POSTING_HEADERS.forEach((header) => {
-      if (headers.indexOf(header) === -1) {
-        headers.push(header);
-      }
-    });
-  }
+  const headers = POSTING_HEADERS.slice();
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   return headers;
 }
