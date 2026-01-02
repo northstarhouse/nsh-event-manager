@@ -52,7 +52,8 @@ const EventManagementApp = () => {
         { id: 'w1-tue', day: 'Tuesday', prompt: 'Testimonial or small history' },
         { id: 'w1-wed', day: 'Wednesday', prompt: 'OPEN' },
         { id: 'w1-thu', day: 'Thursday', prompt: 'Monthly email send out' },
-        { id: 'w1-fri', day: 'Friday', prompt: 'Volunteer outreach - events' }
+        { id: 'w1-fri', day: 'Friday', prompt: 'Volunteer outreach - events' },
+        { id: 'w1-other', day: 'Other', prompt: 'Other' }
       ]
     },
     {
@@ -81,7 +82,8 @@ const EventManagementApp = () => {
         { id: 'w4-mon', day: 'Monday', prompt: 'OPEN' },
         { id: 'w4-tue', day: 'Tuesday', prompt: 'Restoration video' },
         { id: 'w4-thu', day: 'Thursday', prompt: 'Development / board update' },
-        { id: 'w4-fri', day: 'Friday', prompt: 'Volunteer outreach - docents' }
+        { id: 'w4-fri', day: 'Friday', prompt: 'Volunteer outreach - docents' },
+        { id: 'w4-other', day: 'Other', prompt: 'Other' }
       ]
     }
   ];
