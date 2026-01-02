@@ -261,8 +261,21 @@ const EventManagementApp = () => {
         }
         return mergedEvent;
       });
-      setEvents(normalizedEvents);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
+      const filteredEvents = normalizedEvents.filter(event => {
+        if (!event) return false;
+        const hasName = String(event.name || '').trim().length > 0;
+        const hasDate = String(event.date || '').trim().length > 0;
+        const hasCreated = String(event.createdAt || '').trim().length > 0;
+        const hasCounts = String(event.targetAttendance || '').trim().length > 0
+          || String(event.currentRSVPs || '').trim().length > 0;
+        const hasNotes = String(event.notes || '').trim().length > 0
+          || String(event.planningNotes || '').trim().length > 0;
+        const hasChecklist = event.checklist && Object.keys(event.checklist).length > 0;
+        const hasPlanning = event.planningChecklist && Object.keys(event.planningChecklist).length > 0;
+        return hasName || hasDate || hasCreated || hasCounts || hasNotes || hasChecklist || hasPlanning;
+      });
+      setEvents(filteredEvents);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredEvents));
     } catch (error) {
       console.error('Failed to load events from Sheets', error);
       const cached = localStorage.getItem(STORAGE_KEY);
@@ -1776,6 +1789,7 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
 
 
 
