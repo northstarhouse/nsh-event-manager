@@ -156,6 +156,30 @@ const EventManagementApp = () => {
 
   const postingFields = postingSchedule.flatMap(section => section.items);
 
+  const buildPostingEntriesText = (entries) => {
+    return postingFields
+      .map(field => {
+        const value = (entries?.[field.id] || '').trim();
+        if (!value) return null;
+        return `${field.id}|${field.day} - ${field.prompt}|${value}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  const parsePostingEntriesText = (raw) => {
+    if (!raw) return {};
+    const lines = String(raw).split('\n');
+    return lines.reduce((acc, line) => {
+      const parts = line.split('|');
+      const id = parts[0]?.trim();
+      if (!id) return acc;
+      const value = parts.slice(2).join('|').trim();
+      acc[id] = value;
+      return acc;
+    }, {});
+  };
+
   const marketingChecklist = [
     { id: 'press-release', label: 'Create Press Release' },
     { id: 'flyer', label: 'Create Flyer' },
@@ -309,7 +333,7 @@ const EventManagementApp = () => {
       try {
         parsedEntries = JSON.parse(entry.entries || '{}');
       } catch (error) {
-        parsedEntries = {};
+        parsedEntries = parsePostingEntriesText(entry.entries);
       }
     } else if (entry && entry.entries) {
       parsedEntries = entry.entries;
@@ -419,7 +443,7 @@ const EventManagementApp = () => {
     if (!SHEETS_API_URL) return;
     const payload = {
       ...normalizePostingEntry(entry, monthIndex),
-      entries: JSON.stringify(entry.entries || {})
+      entries: buildPostingEntriesText(entry.entries || {})
     };
     try {
       await fetch(SHEETS_API_URL, {
@@ -1789,6 +1813,7 @@ const EventManagementApp = () => {
   </script>
 </body>
 </html>
+
 
 
 
