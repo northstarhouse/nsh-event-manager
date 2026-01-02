@@ -1795,26 +1795,14 @@ const EventManagementApp = () => {
           </div>
         </div>
 
-        <div className="mt-6 bg-white rounded-lg border border-stone-200 shadow-sm p-6">
-          <div className="flex items-start justify-between gap-4 mb-2">
-            <div>
-              <h2 className="text-lg font-medium text-stone-900">Events Booked</h2>
-              <p className="text-xs text-stone-500">
-                {bookingsCount} event{bookingsCount === 1 ? '' : 's'} booked
-              </p>
-            </div>
-            <button
-              type="button"
-              className="text-xs text-amber-700 font-medium"
-              onClick={() => setShowBookingsModal(true)}
-            >
-              Open
-            </button>
-          </div>
-          <div className="text-sm text-stone-700">
-            Review photo permissions, links, and socials status.
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowBookingsModal(true)}
+          className="mt-6 bg-white rounded-lg border border-stone-200 shadow-sm p-6 w-full max-w-[220px] aspect-square flex flex-col items-center justify-center text-center gap-2"
+        >
+          <div className="text-4xl font-light text-stone-900">{bookingsCount}</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Events booked</div>
+        </button>
       </div>
 
       {showNewsletterModal && (
