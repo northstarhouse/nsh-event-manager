@@ -1,6 +1,8 @@
 const SHEET_NAME = 'Event Tracking';
 const NEWSLETTER_SHEET_ID = '1dLNdvhcW1_36brUdahk_eh73qx127GYM8djHMJbyazg';
 const NEWSLETTER_SHEET_NAME = 'Newsletter Content';
+const POSTING_SHEET_ID = '1dLNdvhcW1_36brUdahk_eh73qx127GYM8djHMJbyazg';
+const POSTING_SHEET_NAME = 'Monthly Posting Schedule';
 const HEADERS = [
   'ID',
   'Event',
@@ -33,6 +35,11 @@ const NEWSLETTER_HEADERS = [
   'Other',
   'Published'
 ];
+const POSTING_HEADERS = [
+  'Month',
+  'Completed',
+  'Entries'
+];
 
 function getSheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -52,6 +59,15 @@ function getNewsletterSheet() {
   return sheet;
 }
 
+function getPostingSheet() {
+  const spreadsheet = SpreadsheetApp.openById(POSTING_SHEET_ID);
+  let sheet = spreadsheet.getSheetByName(POSTING_SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.getSheets()[0] || spreadsheet.insertSheet(POSTING_SHEET_NAME);
+  }
+  return sheet;
+}
+
 function ensureNewsletterHeaders(sheet) {
   const lastCol = Math.max(sheet.getLastColumn(), 1);
   const existing = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
@@ -60,6 +76,23 @@ function ensureNewsletterHeaders(sheet) {
     headers = NEWSLETTER_HEADERS.slice();
   } else {
     NEWSLETTER_HEADERS.forEach((header) => {
+      if (headers.indexOf(header) === -1) {
+        headers.push(header);
+      }
+    });
+  }
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  return headers;
+}
+
+function ensurePostingHeaders(sheet) {
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const existing = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  let headers = existing.filter(Boolean);
+  if (headers.length === 0) {
+    headers = POSTING_HEADERS.slice();
+  } else {
+    POSTING_HEADERS.forEach((header) => {
       if (headers.indexOf(header) === -1) {
         headers.push(header);
       }
@@ -130,6 +163,38 @@ function newsletterToRow(headers, entry) {
         break;
       case 'Published':
         row[index] = entry.published ? 'true' : 'false';
+        break;
+      default:
+        row[index] = '';
+    }
+  });
+  return row;
+}
+
+function rowToPosting(headers, row) {
+  const entry = {};
+  headers.forEach((header, index) => {
+    entry[header] = row[index] !== undefined ? row[index] : '';
+  });
+  return {
+    month: entry['Month'],
+    completed: String(entry['Completed']).toLowerCase() === 'true',
+    entries: entry['Entries']
+  };
+}
+
+function postingToRow(headers, entry) {
+  const row = new Array(headers.length).fill('');
+  headers.forEach((header, index) => {
+    switch (header) {
+      case 'Month':
+        row[index] = entry.month || '';
+        break;
+      case 'Completed':
+        row[index] = entry.completed ? 'true' : 'false';
+        break;
+      case 'Entries':
+        row[index] = typeof entry.entries === 'string' ? entry.entries : JSON.stringify(entry.entries || {});
         break;
       default:
         row[index] = '';
@@ -257,6 +322,15 @@ function doGet(e) {
     return buildResponse({ entries: entries });
   }
 
+  if (action === 'posting_list') {
+    const sheet = getPostingSheet();
+    const headers = ensurePostingHeaders(sheet);
+    const lastRow = sheet.getLastRow();
+    const rows = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
+    const entries = rows.map((row) => rowToPosting(headers, row));
+    return buildResponse({ entries: entries });
+  }
+
   const sheet = getSheet();
   const headers = ensureHeaders(sheet);
 
@@ -297,6 +371,32 @@ function doPost(e) {
       }
     }
     const rowValues = newsletterToRow(headers, entry);
+    if (targetRow) {
+      sheet.getRange(targetRow, 1, 1, headers.length).setValues([rowValues]);
+    } else {
+      sheet.appendRow(rowValues);
+    }
+    return buildResponse({ status: 'saved', month: entry.month });
+  }
+
+  if (data.action === 'posting_upsert' && data.entry) {
+    const sheet = getPostingSheet();
+    const headers = ensurePostingHeaders(sheet);
+    const entry = data.entry || {};
+    const monthValue = String(entry.month || '');
+    const monthIndex = headers.indexOf('Month') + 1;
+    const lastRow = sheet.getLastRow();
+    let targetRow = null;
+    if (lastRow > 1 && monthIndex > 0) {
+      const monthValues = sheet.getRange(2, monthIndex, lastRow - 1, 1).getValues();
+      for (let i = 0; i < monthValues.length; i += 1) {
+        if (String(monthValues[i][0]) === monthValue) {
+          targetRow = i + 2;
+          break;
+        }
+      }
+    }
+    const rowValues = postingToRow(headers, entry);
     if (targetRow) {
       sheet.getRange(targetRow, 1, 1, headers.length).setValues([rowValues]);
     } else {

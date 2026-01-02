@@ -11,10 +11,14 @@ const EventManagementApp = () => {
   const [newsletterData, setNewsletterData] = useState({});
   const [showNewsletterModal, setShowNewsletterModal] = useState(false);
   const [newsletterMonth, setNewsletterMonth] = useState(new Date().getMonth());
+  const [postingData, setPostingData] = useState({});
+  const [showPostingModal, setShowPostingModal] = useState(false);
+  const [postingMonth, setPostingMonth] = useState(new Date().getMonth());
   const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzcuMhZ1h15zP7IgYhyCBChgkx_mbe23G6756V2_lHNT1grfgKR-AuZxbHt3t806h8-/exec';
   const STORAGE_KEY = 'nsh-events-cache-v1';
   const FLYER_KEY = 'nsh-event-flyers-v1';
   const NEWSLETTER_STORAGE_KEY = 'nsh-newsletter-cache-v1';
+  const POSTING_STORAGE_KEY = 'nsh-posting-schedule-v1';
 
   const monthLabels = [
     'January',
@@ -39,6 +43,50 @@ const EventManagementApp = () => {
     { id: 'donationNeeds', label: 'Donation Needs' },
     { id: 'other', label: 'Other' }
   ];
+
+  const postingSchedule = [
+    {
+      week: 'First Week',
+      items: [
+        { id: 'w1-mon', day: 'Monday', prompt: 'Wedding posting + scheduling for the month' },
+        { id: 'w1-tue', day: 'Tuesday', prompt: 'Testimonial or small history' },
+        { id: 'w1-wed', day: 'Wednesday', prompt: 'OPEN' },
+        { id: 'w1-thu', day: 'Thursday', prompt: 'Monthly email send out' },
+        { id: 'w1-fri', day: 'Friday', prompt: 'Volunteer outreach - events' }
+      ]
+    },
+    {
+      week: 'Second Week',
+      items: [
+        { id: 'w2-mon', day: 'Monday', prompt: 'Sponsor spotlight' },
+        { id: 'w2-tue', day: 'Tuesday', prompt: 'Upcoming event / tours' },
+        { id: 'w2-thu', day: 'Thursday', prompt: 'Planning update' },
+        { id: 'w2-fri', day: 'Friday', prompt: 'Volunteer outreach - restoration' },
+        { id: 'w2-other', day: 'Other', prompt: 'Other' }
+      ]
+    },
+    {
+      week: 'Third Week',
+      items: [
+        { id: 'w3-mon', day: 'Monday', prompt: 'Upcoming event or wedding' },
+        { id: 'w3-tue', day: 'Tuesday', prompt: 'OPEN' },
+        { id: 'w3-thu', day: 'Thursday', prompt: 'History update' },
+        { id: 'w3-fri', day: 'Friday', prompt: 'Volunteer outreach - garden' },
+        { id: 'w3-other', day: 'Other', prompt: 'Other' }
+      ]
+    },
+    {
+      week: 'Fourth Week',
+      items: [
+        { id: 'w4-mon', day: 'Monday', prompt: 'OPEN' },
+        { id: 'w4-tue', day: 'Tuesday', prompt: 'Restoration video' },
+        { id: 'w4-thu', day: 'Thursday', prompt: 'Development / board update' },
+        { id: 'w4-fri', day: 'Friday', prompt: 'Volunteer outreach - docents' }
+      ]
+    }
+  ];
+
+  const postingFields = postingSchedule.flatMap(section => section.items);
 
   const marketingChecklist = [
     { id: 'press-release', label: 'Create Press Release' },
@@ -174,8 +222,34 @@ const EventManagementApp = () => {
     other: entry?.other || ''
   });
 
+  const normalizePostingEntry = (entry, monthIndex) => {
+    let parsedEntries = {};
+    if (entry && typeof entry.entries === 'string') {
+      try {
+        parsedEntries = JSON.parse(entry.entries || '{}');
+      } catch (error) {
+        parsedEntries = {};
+      }
+    } else if (entry && entry.entries) {
+      parsedEntries = entry.entries;
+    }
+    const entries = postingFields.reduce((acc, field) => {
+      acc[field.id] = parsedEntries[field.id] || '';
+      return acc;
+    }, {});
+    return {
+      month: monthIndex + 1,
+      completed: Boolean(entry?.completed),
+      entries
+    };
+  };
+
   const persistNewsletter = (nextData) => {
     localStorage.setItem(NEWSLETTER_STORAGE_KEY, JSON.stringify(nextData));
+  };
+
+  const persistPosting = (nextData) => {
+    localStorage.setItem(POSTING_STORAGE_KEY, JSON.stringify(nextData));
   };
 
   const loadNewsletter = async () => {
@@ -212,6 +286,40 @@ const EventManagementApp = () => {
     }
   };
 
+  const loadPosting = async () => {
+    if (!SHEETS_API_URL) return;
+    try {
+      const response = await fetch(`${SHEETS_API_URL}?action=posting_list`);
+      if (!response.ok) {
+        throw new Error(`Posting load failed: ${response.status}`);
+      }
+      const data = await response.json();
+      const entries = Array.isArray(data.entries) ? data.entries : [];
+      const mapped = entries.reduce((acc, entry) => {
+        const monthValue = parseInt(entry.month, 10);
+        if (!Number.isNaN(monthValue) && monthValue >= 1 && monthValue <= 12) {
+          acc[monthValue - 1] = normalizePostingEntry(entry, monthValue - 1);
+        }
+        return acc;
+      }, {});
+      setPostingData(mapped);
+      persistPosting(mapped);
+    } catch (error) {
+      console.error('Failed to load posting schedule', error);
+      const cached = localStorage.getItem(POSTING_STORAGE_KEY);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object') {
+            setPostingData(parsed);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse cached posting schedule', parseError);
+        }
+      }
+    }
+  };
+
   const saveNewsletterEntry = async (monthIndex, entry) => {
     if (!SHEETS_API_URL) return;
     const payload = normalizeNewsletterEntry(entry, monthIndex);
@@ -223,6 +331,23 @@ const EventManagementApp = () => {
       });
     } catch (error) {
       console.error('Failed to save newsletter entry', error);
+    }
+  };
+
+  const savePostingEntry = async (monthIndex, entry) => {
+    if (!SHEETS_API_URL) return;
+    const payload = {
+      ...normalizePostingEntry(entry, monthIndex),
+      entries: JSON.stringify(entry.entries || {})
+    };
+    try {
+      await fetch(SHEETS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'posting_upsert', entry: payload })
+      });
+    } catch (error) {
+      console.error('Failed to save posting schedule', error);
     }
   };
 
@@ -239,6 +364,23 @@ const EventManagementApp = () => {
     });
   };
 
+  const updatePostingEntry = (monthIndex, fieldId, value) => {
+    setPostingData(prev => {
+      const current = normalizePostingEntry(prev[monthIndex], monthIndex);
+      const nextEntry = {
+        ...current,
+        entries: {
+          ...current.entries,
+          [fieldId]: value
+        }
+      };
+      const nextData = { ...prev, [monthIndex]: nextEntry };
+      persistPosting(nextData);
+      savePostingEntry(monthIndex, nextEntry);
+      return nextData;
+    });
+  };
+
   const toggleNewsletterPublished = (monthIndex) => {
     setNewsletterData(prev => {
       const current = normalizeNewsletterEntry(prev[monthIndex], monthIndex);
@@ -246,6 +388,17 @@ const EventManagementApp = () => {
       const nextData = { ...prev, [monthIndex]: nextEntry };
       persistNewsletter(nextData);
       saveNewsletterEntry(monthIndex, nextEntry);
+      return nextData;
+    });
+  };
+
+  const togglePostingComplete = (monthIndex) => {
+    setPostingData(prev => {
+      const current = normalizePostingEntry(prev[monthIndex], monthIndex);
+      const nextEntry = { ...current, completed: !current.completed };
+      const nextData = { ...prev, [monthIndex]: nextEntry };
+      persistPosting(nextData);
+      savePostingEntry(monthIndex, nextEntry);
       return nextData;
     });
   };
@@ -311,6 +464,7 @@ const EventManagementApp = () => {
   useEffect(() => {
     loadEvents();
     loadNewsletter();
+    loadPosting();
   }, []);
 
   const calculateDaysUntil = (dateString) => {
@@ -362,6 +516,9 @@ const EventManagementApp = () => {
     const completed = Object.values(planning || {}).filter(item => item && item.done).length;
     return `${completed}/${planningChecklist.length}`;
   };
+
+  const getPostingCompletedCount = (entries) =>
+    postingFields.filter(field => (entries?.[field.id] || '').trim()).length;
 
   const normalizeDateForInput = (value) => {
     if (!value) return '';
@@ -416,6 +573,12 @@ const EventManagementApp = () => {
     ? (currentMonthIndex + 1) % 12
     : currentMonthIndex;
   const previewEntry = newsletterData[previewMonthIndex] || normalizeNewsletterEntry(null, previewMonthIndex);
+  const currentPosting = postingData[currentMonthIndex];
+  const postingPreviewMonthIndex = currentPosting && currentPosting.completed
+    ? (currentMonthIndex + 1) % 12
+    : currentMonthIndex;
+  const postingPreviewEntry = normalizePostingEntry(postingData[postingPreviewMonthIndex], postingPreviewMonthIndex);
+  const postingPreviewCount = getPostingCompletedCount(postingPreviewEntry.entries);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -1348,6 +1511,34 @@ const EventManagementApp = () => {
               : `Draft - ${monthLabels[previewMonthIndex]}`}
           </div>
         </div>
+
+        <div className="mt-6 bg-white rounded-lg border border-stone-200 shadow-sm p-6">
+          <div className="flex items-start justify-between gap-4 mb-2">
+            <div>
+              <h2 className="text-lg font-medium text-stone-900">Monthly Posting Schedule</h2>
+              <p className="text-xs text-stone-500">
+                Current focus: {monthLabels[postingPreviewMonthIndex]}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="text-xs text-amber-700 font-medium"
+              onClick={() => setShowPostingModal(true)}
+            >
+              Open
+            </button>
+          </div>
+          <div className="text-sm text-stone-700">
+            {postingPreviewCount > 0
+              ? `${postingPreviewCount}/${postingFields.length} prompts filled.`
+              : 'Add what you posted this month.'}
+          </div>
+          <div className="mt-3 text-xs text-stone-500">
+            {currentPosting && currentPosting.completed
+              ? `Completed - previewing ${monthLabels[postingPreviewMonthIndex]}`
+              : `In progress - ${monthLabels[postingPreviewMonthIndex]}`}
+          </div>
+        </div>
       </div>
 
       {showNewsletterModal && (
@@ -1420,6 +1611,86 @@ const EventManagementApp = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPostingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-stone-200">
+            <div className="p-6 border-b border-stone-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-light text-stone-900">Monthly Posting Schedule</h2>
+                <p className="text-xs text-stone-500">Track what you actually posted each week.</p>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-stone-600 hover:text-stone-800"
+                onClick={() => setShowPostingModal(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="px-3 py-2 border border-stone-200 rounded-md text-sm text-stone-600 hover:bg-stone-50"
+                    onClick={() => setPostingMonth((postingMonth + 11) % 12)}
+                  >
+                    Prev
+                  </button>
+                  <div className="text-sm font-medium text-stone-900">
+                    {monthLabels[postingMonth]}
+                  </div>
+                  <button
+                    type="button"
+                    className="px-3 py-2 border border-stone-200 rounded-md text-sm text-stone-600 hover:bg-stone-50"
+                    onClick={() => setPostingMonth((postingMonth + 1) % 12)}
+                  >
+                    Next
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className={`px-3 py-2 rounded-md text-sm font-medium border inline-flex items-center gap-2 ${postingData[postingMonth]?.completed ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : 'border-stone-200 text-stone-600 hover:bg-stone-50'}`}
+                  onClick={() => togglePostingComplete(postingMonth)}
+                >
+                  {postingData[postingMonth]?.completed ? (
+                    <>
+                      <CheckCircle2 size={16} />
+                      Completed
+                    </>
+                  ) : (
+                    'Mark as Complete'
+                  )}
+                </button>
+              </div>
+
+              {postingSchedule.map(section => (
+                <div key={section.week} className="space-y-4">
+                  <h3 className="text-sm font-semibold text-stone-900">{section.week}</h3>
+                  <div className="space-y-3">
+                    {section.items.map(item => (
+                      <div key={item.id} className="flex flex-col gap-2 rounded-md border border-stone-200 p-3">
+                        <div className="text-sm font-medium text-stone-800">
+                          {item.day} - {item.prompt}
+                        </div>
+                        <textarea
+                          value={postingData[postingMonth]?.entries?.[item.id] || ''}
+                          onChange={(e) => updatePostingEntry(postingMonth, item.id, e.target.value)}
+                          rows={2}
+                          className="w-full px-4 py-2 border border-stone-200 rounded-md focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-sm"
+                          placeholder="What you posted or did..."
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
